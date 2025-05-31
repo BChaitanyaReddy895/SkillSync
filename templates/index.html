@@ -123,59 +123,15 @@
             color: #555;
             margin: 10px 0;
         }
-
-        /* Added styles for dropdown */
-        .dropdown {
-            position: relative;
-            display: inline-block;
-        }
-
-        .dropdown-content {
-            display: none;
-            position: absolute;
-            background-color: #f9f9f9;
-            min-width: 160px;
-            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-            z-index: 1;
-            border-radius: 5px;
-        }
-
-        .dropdown-content a {
-            color: #00796b;
-            padding: 12px 16px;
-            text-decoration: none;
-            display: block;
-            border: none;
-        }
-
-        .dropdown-content a:hover {
-            background-color: #e0f2e9;
-            color: #00796b;
-        }
-
-        .dropdown:hover .dropdown-content {
-            display: block;
-        }
-
-        .dropbtn {
-            color: white;
-            padding: 8px 16px;
-            font-size: 16px;
-            border: 1px solid white;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-
-        .dropbtn:hover {
-            background-color: white;
-            color: #00796b;
-        }
     </style>
 </head>
 <body>
     <header>
-        <img src="{{ url_for('static', filename='logo.png') }}" alt="SkillSync Logo">
+        {% if url_for('static', filename='logo.png') %}
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="SkillSync Logo">
+        {% else %}
+            <h1>SkillSync</h1>
+        {% endif %}
         <nav>
             <a href="#about">About Us</a>
             <a href="#features">Features Offered</a>
@@ -184,20 +140,8 @@
                 <span>Welcome, {{ session['user_name'] }}</span>
                 <a href="{{ url_for('logout') }}">Logout</a>
             {% else %}
-                <div class="dropdown">
-                    <span class="dropbtn">Sign Up</span>
-                    <div class="dropdown-content">
-                        <a href="{{ url_for('recruiter_signup') }}">Recruiter Sign Up</a>
-                        <a href="{{ url_for('intern_signup') }}">Intern Sign Up</a>
-                    </div>
-                </div>
-                <div class="dropdown">
-                    <span class="dropbtn">Login</span>
-                    <div class="dropdown-content">
-                        <a href="{{ url_for('recruiter_login') }}">Recruiter Login</a>
-                        <a href="{{ url_for('intern_login') }}">Intern Login</a>
-                    </div>
-                </div>
+                <a href="{{ url_for('signup') }}">Sign Up</a>
+                <a href="{{ url_for('login') }}">Login</a>
             {% endif %}
         </nav>
     </header>
