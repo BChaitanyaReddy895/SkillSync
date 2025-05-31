@@ -46,7 +46,7 @@ except Exception as e:
 logger.info("Connecting to MongoDB...")
 try:
     username = os.getenv('MONGO_USERNAME', 'root')
-    password = os.getenv('MONGO_PASSWORD', 'Chaitu895@')
+    password = os.getenv('MONGO_PASSWORD', 'yourpassword123')
     host = os.getenv('MONGO_HOST', 'cluster0.zklixmv.mongodb.net')
     database = os.getenv('MONGO_DATABASE', 'skillsync')
 
@@ -54,8 +54,7 @@ try:
     encoded_password = urllib.parse.quote_plus(password)
     MONGO_URI = f"mongodb+srv://{encoded_username}:{encoded_password}@{host}/{database}?retryWrites=true&w=majority&appName=Cluster0"
     client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
-    # Test the connection
-    client.server_info()  # This will raise an exception if the connection fails
+    client.server_info()  # Test the connection
     db = client['skillsync']
     logger.info("MongoDB connection successful")
 except Exception as e:
@@ -145,95 +144,101 @@ def index():
         logger.error(f"Error rendering index.html: {str(e)}")
         raise
 
-@app.route('/recruiter_login', methods=['GET', 'POST'])
-def recruiter_login():
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
     if request.method == 'POST':
-        email = request.form['email']
-        password = request.form['password']
-        logger.info(f"Recruiter login attempt with email: {email}")
-        recruiter = db.recruiter_info.find_one({'email': email, 'password': password})
-        if recruiter:
-            session['user_id'] = str(recruiter['_id'])
-            session['user_type'] = 'recruiter'
-            session['user_name'] = recruiter['name']
-            flash('Login successful!', 'success')
-            logger.info(f"Recruiter login successful: {email}")
-            return redirect(url_for('recruiter_dashboard'))
-        else:
-            flash('Invalid credentials. Please try again.', 'danger')
-            logger.warning(f"Recruiter login failed: {email}")
-    return render_template('recruiter_login.html')
+        role = request.form.get('role')  # Get the role (recruiter or intern)
+        name = request.form.get('name')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        logger.info(f"Signup attempt with email: {email}, role: {role}")
 
-@app.route('/intern_login', methods=['GET', 'POST'])
-def intern_login():
-    if request.method == 'POST':
-        email = request.form['email']
-        password = request.form['password']
-        logger.info(f"Intern login attempt with email: {email}")
-        intern = db.intern_info.find_one({'email': email, 'password': password})
-        if intern:
-            session['user_id'] = str(intern['_id'])
-            session['user_type'] = 'intern'
-            session['user_name'] = intern['name']
-            flash('Login successful!', 'success')
-            logger.info(f"Intern login successful: {email}")
-            return redirect(url_for('intern_dashboard'))
-        else:
-            flash('Invalid credentials. Please try again.', 'danger')
-            logger.warning(f"Intern login failed: {email}")
-    return render_template('intern_login.html')
+        if not role or role not in ['recruiter', 'intern']:
+            flash('Invalid role selected.', 'danger')
+            logger.warning("Signup failed: Invalid role selected")
+            return redirect(url_for('signup'))
 
-@app.route('/recruiter_signup', methods=['GET', 'POST'])
-def recruiter_signup():
-    if request.method == 'POST':
-        name = request.form['name']
-        email = request.form['email']
-        password = request.form['password']
-        company = request.form['company']
-        logger.info(f"Recruiter signup attempt with email: {email}")
-        if db.recruiter_info.find_one({'email': email}):
-            flash('Email already exists. Please use a different email.', 'danger')
-            logger.warning(f"Recruiter signup failed: Email {email} already exists")
-        else:
-            db.recruiter_info.insert_one({
-                'name': name,
-                'email': email,
-                'password': password,
-                'company': company
-            })
-            flash('Signup successful! Please login.', 'success')
-            logger.info(f"Recruiter signup successful: {email}")
-            return redirect(url_for('recruiter_login'))
-    return render_template('recruiter_signup.html')
+        if role == 'recruiter':
+            company = request.form.get('company')
+            if not company:
+                flash('Company name is required for recruiters.', 'danger')
+                logger.warning(f"Recruiter signup failed: Missing company for email {email}")
+                return redirect(url_for('signup'))
+            # Check if email exists in recruiter_info
+            if db.recruiter_info.find_one({'email': email}):
+                flash('Email already exists. Please use a different email.', 'danger')
+                logger.warning(f"Recruiter signup failed: Email {email} already exists")
+            else:
+                db.recruiter_info.insert_one({
+                    'name': name,
+                    'email': email,
+                    'password': password,
+                    'company': company
+                })
+                flash('Signup successful! Please login.', 'success')
+                logger.info(f"Recruiter signup successful: {email}")
+                return redirect(url_for('login'))
+        else:  # role == 'intern'
+            skills = request.form.get('skills')
+            if db.intern_info.find_one({'email': email}):
+                flash('Email already exists. Please use a different email.', 'danger')
+                logger.warning(f"Intern signup failed: Email {email} already exists")
+            else:
+                db.intern_info.insert_one({
+                    'name': name,
+                    'email': email,
+                    'password': password,
+                    'skills': skills
+                })
+                flash('Signup successful! Please login.', 'success')
+                logger.info(f"Intern signup successful: {email}")
+                return redirect(url_for('login'))
+    return render_template('signup.html')
 
-@app.route('/intern_signup', methods=['GET', 'POST'])
-def intern_signup():
+@app.route('/login', methods=['GET', 'POST'])
+def login():
     if request.method == 'POST':
-        name = request.form['name']
-        email = request.form['email']
-        password = request.form['password']
-        skills = request.form['skills']
-        logger.info(f"Intern signup attempt with email: {email}")
-        if db.intern_info.find_one({'email': email}):
-            flash('Email already exists. Please use a different email.', 'danger')
-            logger.warning(f"Intern signup failed: Email {email} already exists")
-        else:
-            db.intern_info.insert_one({
-                'name': name,
-                'email': email,
-                'password': password,
-                'skills': skills
-            })
-            flash('Signup successful! Please login.', 'success')
-            logger.info(f"Intern signup successful: {email}")
-            return redirect(url_for('intern_login'))
-    return render_template('intern_signup.html')
+        role = request.form.get('role')  # Get the role (recruiter or intern)
+        email = request.form.get('email')
+        password = request.form.get('password')
+        logger.info(f"Login attempt with email: {email}, role: {role}")
+
+        if not role or role not in ['recruiter', 'intern']:
+            flash('Invalid role selected.', 'danger')
+            logger.warning("Login failed: Invalid role selected")
+            return redirect(url_for('login'))
+
+        if role == 'recruiter':
+            user = db.recruiter_info.find_one({'email': email, 'password': password})
+            if user:
+                session['user_id'] = str(user['_id'])
+                session['user_type'] = 'recruiter'
+                session['user_name'] = user['name']
+                flash('Login successful!', 'success')
+                logger.info(f"Recruiter login successful: {email}")
+                return redirect(url_for('recruiter_dashboard'))
+            else:
+                flash('Invalid credentials. Please try again.', 'danger')
+                logger.warning(f"Recruiter login failed: {email}")
+        else:  # role == 'intern'
+            user = db.intern_info.find_one({'email': email, 'password': password})
+            if user:
+                session['user_id'] = str(user['_id'])
+                session['user_type'] = 'intern'
+                session['user_name'] = user['name']
+                flash('Login successful!', 'success')
+                logger.info(f"Intern login successful: {email}")
+                return redirect(url_for('intern_dashboard'))
+            else:
+                flash('Invalid credentials. Please try again.', 'danger')
+                logger.warning(f"Intern login failed: {email}")
+    return render_template('login.html')
 
 @app.route('/recruiter_dashboard')
 def recruiter_dashboard():
     if 'user_id' not in session or session['user_type'] != 'recruiter':
         flash('Please login as a recruiter.', 'danger')
-        return redirect(url_for('recruiter_login'))
+        return redirect(url_for('login'))
     recruiter = db.recruiter_info.find_one({'_id': session['user_id']})
     internships = list(db.internship_info.find({'recruiter_id': session['user_id']}))
     return render_template('recruiter_dashboard.html', recruiter=recruiter, internships=internships)
@@ -242,7 +247,7 @@ def recruiter_dashboard():
 def intern_dashboard():
     if 'user_id' not in session or session['user_type'] != 'intern':
         flash('Please login as an intern.', 'danger')
-        return redirect(url_for('intern_login'))
+        return redirect(url_for('login'))
     intern = db.intern_info.find_one({'_id': session['user_id']})
     internships = list(db.internship_info.find())
     return render_template('intern_dashboard.html', intern=intern, internships=internships)
@@ -251,7 +256,7 @@ def intern_dashboard():
 def register_internship():
     if 'user_id' not in session or session['user_type'] != 'recruiter':
         flash('Please login as a recruiter.', 'danger')
-        return redirect(url_for('recruiter_login'))
+        return redirect(url_for('login'))
     if request.method == 'POST':
         title = request.form['title']
         description = request.form['description']
@@ -270,7 +275,7 @@ def register_internship():
 def upload_resume():
     if 'user_id' not in session or session['user_type'] != 'intern':
         flash('Please login as an intern.', 'danger')
-        return redirect(url_for('intern_login'))
+        return redirect(url_for('login'))
     if request.method == 'POST':
         if 'resume' not in request.files:
             flash('No file part', 'danger')
@@ -301,7 +306,7 @@ def upload_resume():
 def match_resumes(internship_id):
     if 'user_id' not in session or session['user_type'] != 'recruiter':
         flash('Please login as a recruiter.', 'danger')
-        return redirect(url_for('recruiter_login'))
+        return redirect(url_for('login'))
     
     global resume_df, internship_df
     if resume_df is None or internship_df is None:
@@ -332,7 +337,7 @@ def match_resumes(internship_id):
 def download_resume(resume_path):
     if 'user_id' not in session or session['user_type'] != 'recruiter':
         flash('Please login as a recruiter.', 'danger')
-        return redirect(url_for('recruiter_login'))
+        return redirect(url_for('login'))
     return send_file(resume_path, as_attachment=True)
 
 @app.route('/logout')
