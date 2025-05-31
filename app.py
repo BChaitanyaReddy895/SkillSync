@@ -34,7 +34,7 @@ nltk.download('stopwords', download_dir=nltk_data_dir)
 
 # MongoDB Connection
 username = os.getenv('MONGO_USERNAME', 'root')
-password = os.getenv('MONGO_PASSWORD', 'yourpassword123')  # Replace with your actual password or use env variable
+password = os.getenv('MONGO_PASSWORD', 'yourpassword123')
 host = os.getenv('MONGO_HOST', 'cluster0.zklixmv.mongodb.net')
 database = os.getenv('MONGO_DATABASE', 'skillsync')
 
@@ -103,8 +103,15 @@ def fetch_data():
 
     return resume_df, internship_df
 
-# Load data after database initialization
-resume_df, internship_df = fetch_data()
+# Global variables for DataFrames (initially None)
+resume_df = None
+internship_df = None
+
+# Load data on first request
+@app.before_first_request
+def load_data():
+    global resume_df, internship_df
+    resume_df, internship_df = fetch_data()
 
 # Jaccard Similarity for matching
 def jaccard_similarity(vec1, vec2):
@@ -262,6 +269,11 @@ def match_resumes(internship_id):
         flash('Please login as a recruiter.', 'danger')
         return redirect(url_for('recruiter_login'))
     
+    # Ensure data is loaded
+    global resume_df, internship_df
+    if resume_df is None or internship_df is None:
+        resume_df, internship_df = fetch_data()
+
     internship = db.internship_info.find_one({'_id': internship_id})
     if not internship:
         flash('Internship not found.', 'danger')
@@ -296,5 +308,4 @@ def logout():
     flash('You have been logged out.', 'success')
     return redirect(url_for('index'))
 
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+# No app.run() needed when using Gunicorn
