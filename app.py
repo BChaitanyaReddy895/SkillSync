@@ -27,8 +27,10 @@ app.secret_key = os.getenv('FLASK_SECRET_KEY', 'default_secret_key')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # Download NLTK dependencies
-nltk.download('punkt')
-nltk.download('stopwords')
+nltk_data_dir = "/tmp/nltk_data"
+nltk.data.path.append(nltk_data_dir)
+nltk.download('punkt', download_dir=nltk_data_dir)
+nltk.download('stopwords', download_dir=nltk_data_dir)
 
 # MongoDB Connection
 username = os.getenv('MONGO_USERNAME', 'root')
