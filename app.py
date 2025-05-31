@@ -187,9 +187,8 @@ def signup():
                     'location': location,
                     'website_link': website_link
                 })
-                flash('Signup successful! Please login.', 'success')
                 logger.info(f"Recruiter signup successful: {email}")
-                return redirect(url_for('login'))
+                return redirect(url_for('login', signup_success='true'))
         else:  # role == 'intern'
             skills = request.form.get('skills')
             if db.intern_info.find_one({'email': email}):
@@ -202,13 +201,13 @@ def signup():
                     'password': password,
                     'skills': skills
                 })
-                flash('Signup successful! Please login.', 'success')
                 logger.info(f"Intern signup successful: {email}")
-                return redirect(url_for('login'))
+                return redirect(url_for('login', signup_success='true'))
     return render_template('signup.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    signup_success = request.args.get('signup_success', 'false') == 'true'
     if request.method == 'POST':
         role = request.form.get('role')
         email = request.form.get('email')
@@ -218,7 +217,7 @@ def login():
         if not role or role not in ['recruiter', 'intern']:
             flash('Please select a valid role (Recruiter or Intern).', 'danger')
             logger.warning("Login failed: Invalid role selected")
-            return redirect(url_for('login'))
+            return redirect(url_for('login', signup_success='true' if signup_success else 'false'))
 
         if role == 'recruiter':
             user = db.recruiter_info.find_one({'email': email, 'password': password})
@@ -226,9 +225,8 @@ def login():
                 session['user_id'] = str(user['_id'])
                 session['user_type'] = 'recruiter'
                 session['user_name'] = user['name']
-                flash('Login successful!', 'success')
                 logger.info(f"Recruiter login successful: {email}")
-                return redirect(url_for('recruiter_dashboard'))
+                return redirect(url_for('recruiter_dashboard', login_success='true'))
             else:
                 flash('Invalid credentials. Please try again.', 'danger')
                 logger.warning(f"Recruiter login failed: {email}")
@@ -238,31 +236,32 @@ def login():
                 session['user_id'] = str(user['_id'])
                 session['user_type'] = 'intern'
                 session['user_name'] = user['name']
-                flash('Login successful!', 'success')
                 logger.info(f"Intern login successful: {email}")
-                return redirect(url_for('intern_dashboard'))
+                return redirect(url_for('intern_dashboard', login_success='true'))
             else:
                 flash('Invalid credentials. Please try again.', 'danger')
                 logger.warning(f"Intern login failed: {email}")
-    return render_template('login.html')
+    return render_template('login.html', signup_success=signup_success)
 
 @app.route('/recruiter_dashboard')
 def recruiter_dashboard():
+    login_success = request.args.get('login_success', 'false') == 'true'
     if 'user_id' not in session or session['user_type'] != 'recruiter':
         flash('Please login as a recruiter.', 'danger')
         return redirect(url_for('login'))
     recruiter = db.recruiter_info.find_one({'_id': session['user_id']})
     internships = list(db.internship_info.find({'recruiter_id': session['user_id']}))
-    return render_template('recruiter_dashboard.html', recruiter=recruiter, internships=internships)
+    return render_template('recruiter_dashboard.html', recruiter=recruiter, internships=internships, login_success=login_success)
 
 @app.route('/intern_dashboard')
 def intern_dashboard():
+    login_success = request.args.get('login_success', 'false') == 'true'
     if 'user_id' not in session or session['user_type'] != 'intern':
         flash('Please login as an intern.', 'danger')
         return redirect(url_for('login'))
     intern = db.intern_info.find_one({'_id': session['user_id']})
     internships = list(db.internship_info.find())
-    return render_template('intern_dashboard.html', intern=intern, internships=internships)
+    return render_template('intern_dashboard.html', intern=intern, internships=internships, login_success=login_success)
 
 @app.route('/register_internship', methods=['GET', 'POST'])
 def register_internship():
