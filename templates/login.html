@@ -12,6 +12,16 @@
             background-color: #f4f4f9;
         }
 
+        header {
+            background-color: #00796b;
+            padding: 10px 20px;
+            text-align: center;
+        }
+
+        header img {
+            height: 50px;
+        }
+
         .container {
             max-width: 400px;
             margin: 50px auto;
@@ -37,12 +47,24 @@
             color: #555;
         }
 
-        input {
+        input, select {
             padding: 10px;
             margin-bottom: 15px;
             border: 1px solid #ccc;
             border-radius: 5px;
             font-size: 16px;
+        }
+
+        select.error {
+            border-color: red;
+        }
+
+        .error-message {
+            color: red;
+            font-size: 14px;
+            margin-top: -10px;
+            margin-bottom: 15px;
+            display: none;
         }
 
         button {
@@ -74,14 +96,48 @@
         .signup-link a:hover {
             text-decoration: underline;
         }
+
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+
+        .success {
+            color: green;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
+    <header>
+        {% if url_for('static', filename='logo.png') %}
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="SkillSync Logo">
+        {% else %}
+            <h1 style="color: white;">SkillSync</h1>
+        {% endif %}
+    </header>
     <div class="container">
         <h1>Login</h1>
-        <form action="/login" method="POST">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div>
+                {% for category, message in messages %}
+                    <p class="{{ category }}">{{ message }}</p>
+                {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        <form action="{{ url_for('login') }}" method="POST" onsubmit="return validateForm()">
+            <label for="role">I am a:</label>
+            <select id="role" name="role" required>
+                <option value="">Select Role</option>
+                <option value="intern" {% if request.form.get('role') == 'intern' %}selected{% endif %}>Intern</option>
+                <option value="recruiter" {% if request.form.get('role') == 'recruiter' %}selected{% endif %}>Recruiter</option>
+            </select>
+            <span id="role-error" class="error-message">Please select a role.</span>
+
             <label for="email">Email</label>
-            <input type="email" id="email" name="email" placeholder="Enter your email" autocomplete="email" required>
+            <input type="email" id="email" name="email" placeholder="Enter your email" value="{{ request.form.get('email', '') }}" autocomplete="email" required>
 
             <label for="password">Password</label>
             <input type="password" id="password" name="password" placeholder="Enter your password" autocomplete="current-password" required>
@@ -89,8 +145,23 @@
             <button type="submit">Login</button>
         </form>
         <div class="signup-link">
-            Don't have an account? <a href="/signup">Sign up here</a>
+            Don't have an account? <a href="{{ url_for('signup') }}">Sign up here</a>
         </div>
     </div>
+
+    <script>
+        function validateForm() {
+            const role = document.getElementById('role').value;
+            const roleError = document.getElementById('role-error');
+
+            if (!role) {
+                document.getElementById('role').classList.add('error');
+                roleError.style.display = 'block';
+                return false;
+            }
+            roleError.style.display = 'none';
+            return true;
+        }
+    </script>
 </body>
 </html>
