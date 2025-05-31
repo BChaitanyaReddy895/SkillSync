@@ -46,7 +46,7 @@ except Exception as e:
 logger.info("Connecting to MongoDB...")
 try:
     username = os.getenv('MONGO_USERNAME', 'root')
-    password = os.getenv('MONGO_PASSWORD', 'yourpassword123')
+    password = os.getenv('MONGO_PASSWORD', 'Chaitu895@')
     host = os.getenv('MONGO_HOST', 'cluster0.zklixmv.mongodb.net')
     database = os.getenv('MONGO_DATABASE', 'skillsync')
 
