@@ -12,6 +12,16 @@
             background-color: #f4f4f9;
         }
 
+        header {
+            background-color: #00796b;
+            padding: 10px 20px;
+            text-align: center;
+        }
+
+        header img {
+            height: 50px;
+        }
+
         .container {
             max-width: 600px;
             margin: 50px auto;
@@ -46,6 +56,17 @@
             box-sizing: border-box;
         }
 
+        input.error, select.error {
+            border-color: red;
+        }
+
+        .error-message {
+            color: red;
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+
         .form-group {
             display: flex;
             flex-wrap: wrap;
@@ -66,10 +87,35 @@
             font-size: 16px;
             cursor: pointer;
             transition: background-color 0.3s ease;
+            position: relative;
         }
 
         button:hover {
             background-color: #005a4f;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        button .loading {
+            display: none;
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            border: 3px solid white;
+            border-top: 3px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: translateY(-50%) rotate(0deg); }
+            100% { transform: translateY(-50%) rotate(360deg); }
         }
 
         .login-link {
@@ -100,21 +146,17 @@
             display: none;
         }
     </style>
-    <script>
-        function toggleFields() {
-            const role = document.getElementById('role').value;
-            const recruiterFields = document.getElementById('recruiter-fields');
-            if (role === 'recruiter') {
-                recruiterFields.style.display = 'block';
-            } else {
-                recruiterFields.style.display = 'none';
-            }
-        }
-    </script>
 </head>
 <body>
     <header>
-        <img src="{{ url_for('static', filename='logo.png') }}" alt="SkillSync Logo" style="height: 50px;">
+        {% if url_for('static', filename='logo.png') %}
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="SkillSync Logo">
+        {% else %}
+            <h1 style="color: white;">SkillSync</h1>
+        {% endif %}
+        <div style="text-align: center; margin-top: 10px;">
+            <a href="{{ url_for('index') }}" style="color: white; text-decoration: none; font-weight: bold;">Back to Home</a>
+        </div>
     </header>
     <div class="container">
         <h1>Sign Up</h1>
@@ -127,54 +169,143 @@
                 </div>
             {% endif %}
         {% endwith %}
-        <form action="/signup" method="POST">
+        <form action="{{ url_for('signup') }}" method="POST" onsubmit="return validateForm()">
+            <label for="role">I am a:</label>
+            <select id="role" name="role" onchange="toggleFields()" required>
+                <option value="">Select Role</option>
+                <option value="intern" {% if request.form.get('role') == 'intern' %}selected{% endif %}>Intern</option>
+                <option value="recruiter" {% if request.form.get('role') == 'recruiter' %}selected{% endif %}>Recruiter</option>
+            </select>
+            <span id="role-error" class="error-message">Please select a role.</span>
+
             <label for="name">Name:</label>
-            <input type="text" id="name" name="name" required>
+            <input type="text" id="name" name="name" value="{{ request.form.get('name', '') }}" required>
 
             <label for="email">Email:</label>
-            <input type="email" id="email" name="email" required>
+            <input type="email" id="email" name="email" value="{{ request.form.get('email', '') }}" required>
 
             <label for="password">Password:</label>
             <input type="password" id="password" name="password" required>
+            <span id="password-error" class="error-message">Passwords do not match.</span>
 
             <label for="confirm_password">Confirm Password:</label>
             <input type="password" id="confirm_password" name="confirm_password" required>
-
-            <label for="role">Role:</label>
-            <select id="role" name="role" onchange="toggleFields()" required>
-                <option value="intern">Intern</option>
-                <option value="recruiter">Recruiter</option>
-            </select>
 
             <!-- Recruiter-specific fields -->
             <div id="recruiter-fields" class="recruiter-fields">
                 <div class="form-group">
                     <div>
                         <label for="organization_name">Organization/Company Name:</label>
-                        <input type="text" id="organization_name" name="organization_name">
+                        <input type="text" id="organization_name" name="organization_name" value="{{ request.form.get('organization_name', '') }}" class="{% if request.form.get('role') == 'recruiter' and not request.form.get('organization_name') %}error{% endif %}">
+                        <span id="organization-error" class="error-message">Company name is required for recruiters.</span>
                     </div>
                     <div>
                         <label for="contact_details">Contact Details:</label>
-                        <input type="text" id="contact_details" name="contact_details">
+                        <input type="text" id="contact_details" name="contact_details" value="{{ request.form.get('contact_details', '') }}">
                     </div>
                 </div>
                 <div class="form-group">
                     <div>
                         <label for="location">Location:</label>
-                        <input type="text" id="location" name="location">
+                        <input type="text" id="location" name="location" value="{{ request.form.get('location', '') }}">
                     </div>
                     <div>
                         <label for="website_link">Website Link:</label>
-                        <input type="url" id="website_link" name="website_link">
+                        <input type="url" id="website_link" name="website_link" value="{{ request.form.get('website_link', '') }}">
                     </div>
                 </div>
             </div>
 
-            <button type="submit">Sign Up</button>
+            <!-- Intern-specific field -->
+            <div id="intern-fields" style="display: none;">
+                <label for="skills">Skills (comma-separated):</label>
+                <input type="text" id="skills" name="skills" value="{{ request.form.get('skills', '') }}">
+            </div>
+
+            <button type="submit" id="signup-button">Sign Up <span class="loading"></span></button>
         </form>
         <div class="login-link">
-            Already have an account? <a href="/login">Login here</a>
+            Already have an account? <a href="{{ url_for('login') }}">Login here</a>
         </div>
     </div>
+
+    <script>
+        function toggleFields() {
+            const role = document.getElementById('role').value;
+            const recruiterFields = document.getElementById('recruiter-fields');
+            const internFields = document.getElementById('intern-fields');
+            const organizationInput = document.getElementById('organization_name');
+            const skillsInput = document.getElementById('skills');
+
+            if (role === 'recruiter') {
+                recruiterFields.style.display = 'block';
+                internFields.style.display = 'none';
+                organizationInput.required = true;
+                skillsInput.required = false;
+            } else if (role === 'intern') {
+                recruiterFields.style.display = 'none';
+                internFields.style.display = 'block';
+                organizationInput.required = false;
+                skillsInput.required = true;
+            } else {
+                recruiterFields.style.display = 'none';
+                internFields.style.display = 'none';
+                organizationInput.required = false;
+                skillsInput.required = false;
+            }
+        }
+
+        function validateForm() {
+            const role = document.getElementById('role').value;
+            const roleError = document.getElementById('role-error');
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm_password').value;
+            const passwordError = document.getElementById('password-error');
+            const organization = document.getElementById('organization_name').value.trim();
+            const organizationError = document.getElementById('organization-error');
+            const organizationInput = document.getElementById('organization_name');
+
+            let isValid = true;
+
+            // Validate role
+            if (!role) {
+                document.getElementById('role').classList.add('error');
+                roleError.style.display = 'block';
+                isValid = false;
+            } else {
+                roleError.style.display = 'none';
+            }
+
+            // Validate password match
+            if (password !== confirmPassword) {
+                document.getElementById('password').classList.add('error');
+                document.getElementById('confirm_password').classList.add('error');
+                passwordError.style.display = 'block';
+                isValid = false;
+            } else {
+                passwordError.style.display = 'none';
+            }
+
+            // Validate organization name for recruiters
+            if (role === 'recruiter' && !organization) {
+                organizationInput.classList.add('error');
+                organizationError.style.display = 'block';
+                isValid = false;
+            } else {
+                organizationError.style.display = 'none';
+            }
+
+            if (isValid) {
+                const button = document.getElementById('signup-button');
+                button.disabled = true;
+                button.querySelector('.loading').style.display = 'inline-block';
+            }
+
+            return isValid;
+        }
+
+        // Run on page load to set initial state
+        toggleFields();
+    </script>
 </body>
 </html>
