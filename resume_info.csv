@@ -1,0 +1,6 @@
+user_id,name_of_applicant,email,phone_number,skills,experience,education,certifications,achievements,downloaded
+4,"John Doe","john.doe@email.com","1234567890","Python, Machine Learning, Data Science","2 years at XYZ Corp","B.Sc in Computer Science","AI Chatbot, Web Scraper","Best AI Project Award",0
+3,"Alice Smith","alice.smith@email.com","9876543210","Java, Spring Boot, SQL","3 years at ABC Tech","M.Sc in Software Engineering","E-commerce Website, Chatbot","Top Developer Award",0
+6,"Michael Johnson","michael.johnson@email.com","1122334455","JavaScript, React, Node.js","1.5 years at Web Solutions","B.Tech in IT","Portfolio Website, API Development","Employee of the Month",0
+7,"Emily Davis","emily.davis@email.com","2233445566","C++, Embedded Systems, Robotics","2.5 years at IoT Innovations","B.E in Electronics","Smart Home Automation, AI-driven Drone","Best Robotics Paper",0
+3,"Robert Brown","robert.brown@email.com","3344556677","Cybersecurity, Ethical Hacking, Python","4 years at SecureNet","M.Sc in Cybersecurity","Network Security Tool, Ethical Hacking Guide","Certified Ethical Hacker",0

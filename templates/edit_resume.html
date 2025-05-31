@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit ATS-Friendly Resume</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+        }
+
+        header {
+            background-color: #00796b;
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        header img {
+            height: 50px;
+        }
+
+        nav {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            font-size: 16px;
+            padding: 8px 16px;
+            border: 1px solid white;
+            border-radius: 5px;
+        }
+
+        nav a:hover {
+            background-color: white;
+            color: #00796b;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #00796b;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        input, textarea {
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        textarea {
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        button {
+            padding: 10px;
+            background-color: #00796b;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #005a4f;
+        }
+
+        .flash-messages {
+            margin: 10px 0;
+        }
+
+        .flash-messages .success {
+            color: green;
+            background-color: #e0f2e9;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .flash-messages .error {
+            color: red;
+            background-color: #ffe6e6;
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="SkillSync Logo">
+        <nav>
+            <span>Welcome, {{ session.user_name }}</span>
+            <a href="{{ url_for('logout') }}">Logout</a>
+        </nav>
+    </header>
+    <div class="container">
+        <h1>Edit ATS-Friendly Resume</h1>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <p class="{{ category }}">{{ message }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        <form action="{{ url_for('edit_resume') }}" method="POST">
+            <label for="name">Full Name</label>
+            <input type="text" id="name" name="name" value="{{ resume.name_of_applicant }}" required>
+
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" value="{{ resume.email }}" required>
+
+            <label for="phone">Phone Number</label>
+            <input type="text" id="phone" name="phone" value="{{ resume.phone_number }}">
+
+            <label for="skills">Skills</label>
+            <textarea id="skills" name="skills" rows="4" required>{{ resume.skills }}</textarea>
+
+            <label for="experience">Work Experience</label>
+            <textarea id="experience" name="experience" rows="6" required>{{ resume.experience }}</textarea>
+
+            <label for="education">Education</label>
+            <textarea id="education" name="education" rows="4" required>{{ resume.education }}</textarea>
+
+            <label for="certifications">Certifications (Optional)</label>
+            <textarea id="certifications" name="certifications" rows="2">{{ resume.certifications }}</textarea>
+
+            <label for="achievements">Achievements (Optional)</label>
+            <textarea id="achievements" name="achievements" rows="2">{{ resume.achievements }}</textarea>
+
+            <button type="submit">Update Resume</button>
+            <a href="{{ url_for('intern_dashboard') }}" style="display: inline-block; padding: 10px; background-color: #ccc; color: #333; text-decoration: none; border-radius: 5px; margin-top: 10px;">Cancel</a>
+        </form>
+    </div>
+</body>
+</html>

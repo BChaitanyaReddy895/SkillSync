@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register Internship</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #00796b;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        input, textarea, select {
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 10px;
+            background-color: #00796b;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #005a4f;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 10px;
+            background-color: #00796b;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 16px;
+            margin: 5px 0;
+            text-align: center;
+            transition: background-color 0.3s ease;
+        }
+
+        .button:hover {
+            background-color: #005a4f;
+        }
+
+        .success {
+            color: green;
+        }
+
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome, {{ recruiter['name'] }}</h1>
+        <p><strong>Organization:</strong> {{ recruiter['organization_name'] }}</p>
+        <p><strong>Email:</strong> {{ recruiter['email'] }}</p>
+
+        <form action="/register_internship" method="POST">
+            <label for="role">Role:</label>
+            <input type="text" id="role" name="role" required><br><br>
+
+            <label for="description_of_internship">Description:</label>
+            <textarea id="description_of_internship" name="description_of_internship" required></textarea><br><br>
+
+            <label for="start_date">Start Date:</label>
+            <input type="date" id="start_date" name="start_date" required><br><br>
+
+            <label for="end_date">End Date:</label>
+            <input type="date" id="end_date" name="end_date" required><br><br>
+
+            <label for="duration">Duration:</label>
+            <input type="text" id="duration" name="duration" required><br><br>
+
+            <label for="type_of_internship">Type of Internship:</label>
+            <input type="text" id="type_of_internship" name="type_of_internship" required><br><br>
+
+            <label for="skills_required">Skills Required:</label>
+            <textarea id="skills_required" name="skills_required" required></textarea><br><br>
+
+            <label for="location">Location:</label>
+            <input type="text" id="location" name="location" required><br><br>
+
+            <label for="years_of_experience">Years of Experience:</label>
+            <input type="number" id="years_of_experience" name="years_of_experience" required><br><br>
+
+            <label for="phone_number">Phone Number (e.g., +1-800-555-1234):</label>
+            <input type="text" id="phone_number" name="phone_number" maxlength="20" required><br><br>
+
+            <button type="submit">Register Internship</button>
+        </form>
+    </div>
+</body>
+</html>

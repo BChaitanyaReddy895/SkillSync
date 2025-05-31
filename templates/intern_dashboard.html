@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intern Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+        }
+
+        header {
+            background-color: #00796b;
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        header img {
+            height: 50px;
+        }
+
+        nav {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        nav span {
+            font-size: 16px;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            font-size: 16px;
+            padding: 8px 16px;
+            border: 1px solid white;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        nav a:hover {
+            background-color: white;
+            color: #00796b;
+        }
+
+        .container {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #00796b;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 15px 30px;
+            margin: 10px;
+            background-color: #00796b;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 18px;
+            transition: background-color 0.3s ease;
+        }
+
+        .button:hover {
+            background-color: #005a4f;
+        }
+
+        .flash-messages {
+            margin: 10px 0;
+        }
+
+        .flash-messages .success {
+            color: green;
+            background-color: #e0f2e9;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .flash-messages .error {
+            color: red;
+            background-color: #ffe6e6;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .internship {
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .internship h3 {
+            color: #00796b;
+            margin: 0 0 10px;
+        }
+
+        .internship p {
+            margin: 5px 0;
+            color: #333;
+        }
+
+        .apply-button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #00796b;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .apply-button:hover {
+            background-color: #005a4f;
+        }
+
+        .applied-label {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #cccccc;
+            color: #333;
+            border-radius: 5px;
+            font-size: 16px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="SkillSync Logo">
+        <nav>
+            <span>Welcome, {{ user_name }}</span>
+            <a href="{{ url_for('logout') }}">Logout</a>
+        </nav>
+    </header>
+    <div class="container">
+        <h1>Intern Dashboard</h1>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <p class="{{ category }}">{{ message }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        <div>
+            <a href="{{ url_for('create_resume') }}" class="button">Create ATS-Friendly Resume</a>
+            <a href="{{ url_for('edit_resume') }}" class="button">Edit Resume</a>
+            <a href="{{ url_for('match') }}" class="button">Matched Internships</a>
+            <a href="{{ url_for('applied_internships') }}" class="button">Applied Internships</a>
+            <a href="{{ url_for('edit_profile') }}" class="button">Edit Profile</a>
+        </div>
+        
+        <h2>Matched Internships</h2>
+        {% if matched_internships %}
+            {% for internship in matched_internships %}
+                <div class="internship">
+                    <h3>{{ internship.internship_title }} at {{ internship.company }}</h3>
+                    <p><strong>Type:</strong> {{ internship.type_of_internship }}</p>
+                    <p><strong>Duration:</strong> {{ internship.duration }}</p>
+                    <p><strong>Location:</strong> {{ internship.location }}</p>
+                    <p><strong>Skills Required:</strong> {{ internship.skills_required }}</p>
+                    <p><strong>Similarity Score:</strong> {{ internship.similarity_score }}%</p>
+                    {% if internship.similarity_score > 75 %}
+                        {% if internship.id in applied_internship_ids %}
+                            <span class="applied-label">Applied</span>
+                        {% else %}
+                            <form action="{{ url_for('apply_internship') }}" method="POST">
+                                <input type="hidden" name="internship_id" value="{{ internship.id }}">
+                                <button type="submit" class="apply-button">Apply</button>
+                            </form>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>No matched internships found. Create or update your resume to find matches.</p>
+        {% endif %}
+    </div>
+</body>
+</html>
