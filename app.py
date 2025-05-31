@@ -9,15 +9,19 @@ import urllib.parse
 import os
 import logging
 
-# Configure logging to a file
+# Configure logging to a file and console
 log_dir = "/tmp/logs"
 os.makedirs(log_dir, exist_ok=True)
 logging.basicConfig(
-    filename=os.path.join(log_dir, "app.log"),
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s"
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.FileHandler(os.path.join(log_dir, "app.log")),
+        logging.StreamHandler()  # Also log to console for Hugging Face Spaces
+    ]
 )
 logging.getLogger('werkzeug').setLevel(logging.WARNING)
+logger = logging.getLogger(__name__)
 
 # Configuration
 UPLOAD_FOLDER = 'static/uploads'
@@ -29,23 +33,40 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # Download NLTK dependencies
 nltk_data_dir = "/tmp/nltk_data"
 nltk.data.path.append(nltk_data_dir)
-nltk.download('punkt', download_dir=nltk_data_dir)
-nltk.download('stopwords', download_dir=nltk_data_dir)
+logger.info("Downloading NLTK data...")
+try:
+    nltk.download('punkt', download_dir=nltk_data_dir)
+    nltk.download('stopwords', download_dir=nltk_data_dir)
+    logger.info("NLTK data downloaded successfully")
+except Exception as e:
+    logger.error(f"Failed to download NLTK data: {str(e)}")
+    raise
 
 # MongoDB Connection
-username = os.getenv('MONGO_USERNAME', 'root')
-password = os.getenv('MONGO_PASSWORD', 'yourpassword123')
-host = os.getenv('MONGO_HOST', 'cluster0.zklixmv.mongodb.net')
-database = os.getenv('MONGO_DATABASE', 'skillsync')
+logger.info("Connecting to MongoDB...")
+try:
+    username = os.getenv('MONGO_USERNAME', 'root')
+    password = os.getenv('MONGO_PASSWORD', 'yourpassword123')
+    host = os.getenv('MONGO_HOST', 'cluster0.zklixmv.mongodb.net')
+    database = os.getenv('MONGO_DATABASE', 'skillsync')
 
-# URL-encode the username and password
-encoded_username = urllib.parse.quote_plus(username)
-encoded_password = urllib.parse.quote_plus(password)
+    encoded_username = urllib.parse.quote_plus(username)
+    encoded_password = urllib.parse.quote_plus(password)
+    MONGO_URI = f"mongodb+srv://{encoded_username}:{encoded_password}@{host}/{database}?retryWrites=true&w=majority&appName=Cluster0"
+    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+    # Test the connection
+    client.server_info()  # This will raise an exception if the connection fails
+    db = client['skillsync']
+    logger.info("MongoDB connection successful")
+except Exception as e:
+    logger.error(f"Failed to connect to MongoDB: {str(e)}")
+    raise
 
-# Construct the MongoDB URI
-MONGO_URI = f"mongodb+srv://{encoded_username}:{encoded_password}@{host}/{database}?retryWrites=true&w=majority&appName=Cluster0"
-client = MongoClient(MONGO_URI)
-db = client['skillsync']
+# Custom error handler for 500 errors
+@app.errorhandler(500)
+def internal_error(error):
+    logger.error(f"Internal Server Error: {str(error)}")
+    return "Internal Server Error: Check the server logs for details.", 500
 
 # Preprocessing function for skills
 def preprocess_skills(skills):
@@ -57,40 +78,28 @@ def preprocess_skills(skills):
 
 # Fetch data from MongoDB
 def fetch_data():
-    # Fetch resumes
+    logger.info("Fetching resumes from MongoDB")
     resumes = list(db.resume_info.find())
     resume_df = pd.DataFrame(resumes)
-    
-    # Fetch internships
+    logger.info(f"Fetched {len(resumes)} resumes")
+
+    logger.info("Fetching internships from MongoDB")
     internships = list(db.internship_info.find())
     internship_df = pd.DataFrame(internships)
+    logger.info(f"Fetched {len(internships)} internships")
 
-    # Debug: Check DataFrames (commented out to reduce logging)
-    # print("resume_df:", resume_df)
-    # print("internship_df:", internship_df)
-
-    # Preprocessing
     resume_df.fillna('', inplace=True)
     internship_df.fillna('', inplace=True)
     resume_df['processed_Skills'] = resume_df['skills'].apply(preprocess_skills)
     internship_df['processed_Required_Skills'] = internship_df['skills_required'].apply(preprocess_skills)
 
-    # Debug: Check processed skills (commented out)
-    # print("resume_df['processed_Skills']:", resume_df['processed_Skills'])
-    # print("internship_df['processed_Required_Skills']:", internship_df['processed_Required_Skills'])
-
-    # Create a set of unique skills, handling empty cases
     resume_skills = resume_df['processed_Skills'].explode().dropna().tolist()
     internship_skills = internship_df['processed_Required_Skills'].explode().dropna().tolist()
     all_skills = resume_skills + internship_skills
 
-    # Debug: Check all_skills (commented out)
-    # print("all_skills:", all_skills)
-
     global skill_to_index
-    skill_to_index = {skill: idx for idx, skill in enumerate(set(all_skills)) if all_skills}  # Avoid empty set
+    skill_to_index = {skill: idx for idx, skill in enumerate(set(all_skills)) if all_skills}
 
-    # Vectorization
     def skills_to_vector(skills):
         vector = [0] * len(skill_to_index)
         for skill in skills:
@@ -111,7 +120,13 @@ internship_df = None
 @app.before_first_request
 def load_data():
     global resume_df, internship_df
-    resume_df, internship_df = fetch_data()
+    logger.info("Loading data on first request...")
+    try:
+        resume_df, internship_df = fetch_data()
+        logger.info("Data loaded successfully")
+    except Exception as e:
+        logger.error(f"Failed to load data: {str(e)}")
+        raise
 
 # Jaccard Similarity for matching
 def jaccard_similarity(vec1, vec2):
@@ -123,21 +138,30 @@ def jaccard_similarity(vec1, vec2):
 # Routes
 @app.route('/')
 def index():
-    return render_template('index.html')
+    try:
+        logger.info("Rendering index.html")
+        return render_template('index.html')
+    except Exception as e:
+        logger.error(f"Error rendering index.html: {str(e)}")
+        raise
 
 @app.route('/recruiter_login', methods=['GET', 'POST'])
 def recruiter_login():
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
+        logger.info(f"Recruiter login attempt with email: {email}")
         recruiter = db.recruiter_info.find_one({'email': email, 'password': password})
         if recruiter:
             session['user_id'] = str(recruiter['_id'])
             session['user_type'] = 'recruiter'
+            session['user_name'] = recruiter['name']
             flash('Login successful!', 'success')
+            logger.info(f"Recruiter login successful: {email}")
             return redirect(url_for('recruiter_dashboard'))
         else:
             flash('Invalid credentials. Please try again.', 'danger')
+            logger.warning(f"Recruiter login failed: {email}")
     return render_template('recruiter_login.html')
 
 @app.route('/intern_login', methods=['GET', 'POST'])
@@ -145,14 +169,18 @@ def intern_login():
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
+        logger.info(f"Intern login attempt with email: {email}")
         intern = db.intern_info.find_one({'email': email, 'password': password})
         if intern:
             session['user_id'] = str(intern['_id'])
             session['user_type'] = 'intern'
+            session['user_name'] = intern['name']
             flash('Login successful!', 'success')
+            logger.info(f"Intern login successful: {email}")
             return redirect(url_for('intern_dashboard'))
         else:
             flash('Invalid credentials. Please try again.', 'danger')
+            logger.warning(f"Intern login failed: {email}")
     return render_template('intern_login.html')
 
 @app.route('/recruiter_signup', methods=['GET', 'POST'])
@@ -162,8 +190,10 @@ def recruiter_signup():
         email = request.form['email']
         password = request.form['password']
         company = request.form['company']
+        logger.info(f"Recruiter signup attempt with email: {email}")
         if db.recruiter_info.find_one({'email': email}):
             flash('Email already exists. Please use a different email.', 'danger')
+            logger.warning(f"Recruiter signup failed: Email {email} already exists")
         else:
             db.recruiter_info.insert_one({
                 'name': name,
@@ -172,6 +202,7 @@ def recruiter_signup():
                 'company': company
             })
             flash('Signup successful! Please login.', 'success')
+            logger.info(f"Recruiter signup successful: {email}")
             return redirect(url_for('recruiter_login'))
     return render_template('recruiter_signup.html')
 
@@ -182,8 +213,10 @@ def intern_signup():
         email = request.form['email']
         password = request.form['password']
         skills = request.form['skills']
+        logger.info(f"Intern signup attempt with email: {email}")
         if db.intern_info.find_one({'email': email}):
             flash('Email already exists. Please use a different email.', 'danger')
+            logger.warning(f"Intern signup failed: Email {email} already exists")
         else:
             db.intern_info.insert_one({
                 'name': name,
@@ -192,6 +225,7 @@ def intern_signup():
                 'skills': skills
             })
             flash('Signup successful! Please login.', 'success')
+            logger.info(f"Intern signup successful: {email}")
             return redirect(url_for('intern_login'))
     return render_template('intern_signup.html')
 
@@ -269,7 +303,6 @@ def match_resumes(internship_id):
         flash('Please login as a recruiter.', 'danger')
         return redirect(url_for('recruiter_login'))
     
-    # Ensure data is loaded
     global resume_df, internship_df
     if resume_df is None or internship_df is None:
         resume_df, internship_df = fetch_data()
@@ -307,5 +340,3 @@ def logout():
     session.clear()
     flash('You have been logged out.', 'success')
     return redirect(url_for('index'))
-
-# No app.run() needed when using Gunicorn
