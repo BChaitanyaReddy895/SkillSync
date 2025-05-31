@@ -17,7 +17,7 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
         logging.FileHandler(os.path.join(log_dir, "app.log")),
-        logging.StreamHandler()  # Also log to console for Hugging Face Spaces
+        logging.StreamHandler()
     ]
 )
 logging.getLogger('werkzeug').setLevel(logging.WARNING)
@@ -54,7 +54,7 @@ try:
     encoded_password = urllib.parse.quote_plus(password)
     MONGO_URI = f"mongodb+srv://{encoded_username}:{encoded_password}@{host}/{database}?retryWrites=true&w=majority&appName=Cluster0"
     client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
-    client.server_info()  # Test the connection
+    client.server_info()
     db = client['skillsync']
     logger.info("MongoDB connection successful")
 except Exception as e:
@@ -147,24 +147,33 @@ def index():
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
-        role = request.form.get('role')  # Get the role (recruiter or intern)
+        role = request.form.get('role')
         name = request.form.get('name')
         email = request.form.get('email')
         password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
         logger.info(f"Signup attempt with email: {email}, role: {role}")
 
         if not role or role not in ['recruiter', 'intern']:
-            flash('Invalid role selected.', 'danger')
+            flash('Please select a valid role (Recruiter or Intern).', 'danger')
             logger.warning("Signup failed: Invalid role selected")
             return redirect(url_for('signup'))
 
+        # Validate password match
+        if password != confirm_password:
+            flash('Passwords do not match. Please try again.', 'danger')
+            logger.warning(f"Signup failed: Passwords do not match for email {email}")
+            return redirect(url_for('signup'))
+
         if role == 'recruiter':
-            company = request.form.get('company')
+            company = request.form.get('organization_name')
+            contact_details = request.form.get('contact_details')
+            location = request.form.get('location')
+            website_link = request.form.get('website_link')
             if not company:
-                flash('Company name is required for recruiters.', 'danger')
-                logger.warning(f"Recruiter signup failed: Missing company for email {email}")
+                flash('Please provide an organization/company name to sign up as a recruiter.', 'danger')
+                logger.warning(f"Recruiter signup failed: Missing organization name for email {email}")
                 return redirect(url_for('signup'))
-            # Check if email exists in recruiter_info
             if db.recruiter_info.find_one({'email': email}):
                 flash('Email already exists. Please use a different email.', 'danger')
                 logger.warning(f"Recruiter signup failed: Email {email} already exists")
@@ -173,7 +182,10 @@ def signup():
                     'name': name,
                     'email': email,
                     'password': password,
-                    'company': company
+                    'company': company,
+                    'contact_details': contact_details,
+                    'location': location,
+                    'website_link': website_link
                 })
                 flash('Signup successful! Please login.', 'success')
                 logger.info(f"Recruiter signup successful: {email}")
@@ -198,13 +210,13 @@ def signup():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        role = request.form.get('role')  # Get the role (recruiter or intern)
+        role = request.form.get('role')
         email = request.form.get('email')
         password = request.form.get('password')
         logger.info(f"Login attempt with email: {email}, role: {role}")
 
         if not role or role not in ['recruiter', 'intern']:
-            flash('Invalid role selected.', 'danger')
+            flash('Please select a valid role (Recruiter or Intern).', 'danger')
             logger.warning("Login failed: Invalid role selected")
             return redirect(url_for('login'))
 
