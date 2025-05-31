@@ -10,7 +10,7 @@ import os
 import logging
 
 # Configure logging to a file
-log_dir = "logs"
+log_dir = "/tmp/logs"
 os.makedirs(log_dir, exist_ok=True)
 logging.basicConfig(
     filename=os.path.join(log_dir, "app.log"),
@@ -32,7 +32,7 @@ nltk.download('stopwords')
 
 # MongoDB Connection
 username = os.getenv('MONGO_USERNAME', 'root')
-password = os.getenv('MONGO_PASSWORD', 'Chaitu895@')  # Replace with your actual password or use env variable
+password = os.getenv('MONGO_PASSWORD', 'yourpassword123')  # Replace with your actual password or use env variable
 host = os.getenv('MONGO_HOST', 'cluster0.zklixmv.mongodb.net')
 database = os.getenv('MONGO_DATABASE', 'skillsync')
 
