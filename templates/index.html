@@ -3,8 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign Up - SkillSync</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <title>SkillSync - Internship Matcher</title>
     <style>
+        html {
+            scroll-behavior: smooth;
+        }
+
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -14,264 +19,207 @@
 
         header {
             background-color: #00796b;
+            color: white;
             padding: 10px 20px;
-            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
 
         header img {
             height: 50px;
         }
 
-        .container {
-            max-width: 600px;
-            margin: 50px auto;
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        h1 {
-            text-align: center;
-            color: #00796b;
-        }
-
-        form {
+        nav {
             display: flex;
-            flex-direction: column;
-            gap: 15px;
+            gap: 20px;
+            align-items: center;
         }
 
-        label {
-            font-weight: bold;
-            color: #555;
-        }
-
-        input, select {
-            padding: 10px;
+        nav span {
             font-size: 16px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            width: 100%;
-            box-sizing: border-box;
         }
 
-        input.error, select.error {
-            border-color: red;
-        }
-
-        .error-message {
-            color: red;
-            font-size: 14px;
-            margin-top: 5px;
-            display: none;
-        }
-
-        .form-group {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-
-        .form-group > div {
-            flex: 1;
-            min-width: 45%;
-        }
-
-        button {
-            padding: 10px;
-            background-color: #00796b;
+        nav a {
             color: white;
-            border: none;
-            border-radius: 5px;
+            text-decoration: none;
             font-size: 16px;
-            cursor: pointer;
+            padding: 8px 16px;
+            border: 1px solid white;
+            border-radius: 5px;
             transition: background-color 0.3s ease;
         }
 
-        button:hover {
+        nav a:hover {
+            background-color: white;
+            color: #00796b;
+        }
+
+        .hero {
+            text-align: center;
+            padding: 50px 20px;
+            background-color: #e0f7fa;
+        }
+
+        .hero h1 {
+            font-size: 36px;
+            color: #00796b;
+        }
+
+        .hero p {
+            font-size: 18px;
+            color: #555;
+            margin: 20px 0;
+        }
+
+        .role-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 30px;
+        }
+
+        .role-buttons div {
+            text-align: center;
+        }
+
+        .role-buttons h3 {
+            font-size: 20px;
+            color: #00796b;
+            margin-bottom: 10px;
+        }
+
+        .role-buttons a {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 5px;
+            background-color: #00796b;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+
+        .role-buttons a:hover {
             background-color: #005a4f;
         }
 
-        .login-link {
+        .about, .features {
+            padding: 50px 20px;
             text-align: center;
-            margin-top: 10px;
         }
 
-        .login-link a {
+        .about h2, .features h2 {
+            font-size: 28px;
             color: #00796b;
-            text-decoration: none;
-            font-weight: bold;
         }
 
-        .login-link a:hover {
-            text-decoration: underline;
+        .about p, .features p {
+            font-size: 16px;
+            color: #555;
+            margin: 20px 0;
+            line-height: 1.6;
         }
 
-        .error {
-            color: red;
-            font-weight: bold;
-        }
-        .success {
-            color: green;
-            font-weight: bold;
+        .features ul {
+            list-style-type: none;
+            padding: 0;
         }
 
-        .recruiter-fields {
-            display: none;
+        .features li {
+            font-size: 16px;
+            color: #555;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        .features li:hover {
+            background-color: #e0f2e9;
+        }
+
+        .contact {
+            padding: 50px 20px;
+            text-align: center;
+            background-color: #e0f7fa;
+        }
+
+        .contact h2 {
+            font-size: 28px;
+            color: #00796b;
+        }
+
+        .contact p {
+            font-size: 16px;
+            color: #555;
+            margin: 10px 0;
         }
     </style>
 </head>
 <body>
     <header>
-        {% if url_for('static', filename='logo.png') %}
-            <img src="{{ url_for('static', filename='logo.png') }}" alt="SkillSync Logo">
-        {% else %}
-            <h1 style="color: white;">SkillSync</h1>
-        {% endif %}
-    </header>
-    <div class="container">
-        <h1>Sign Up</h1>
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div>
-                {% for category, message in messages %}
-                    <p class="{{ category }}">{{ message }}</p>
-                {% endfor %}
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="SkillSync Logo">
+        <nav>
+            <a href="#about">About Us</a>
+            <a href="#features">Features Offered</a>
+            <a href="#contact">Contact Us</a>
+            {% if session['user_name'] %}
+                <span>Welcome, {{ session['user_name'] }}</span>
+                <a href="{{ url_for('logout') }}">Logout</a>
+            {% else %}
+                <div class="role-buttons">
+                    <div>
+                        <h3>Recruiters</h3>
+                        <a href="{{ url_for('recruiter_signup') }}">Sign Up</a>
+                        <a href="{{ url_for('recruiter_login') }}">Login</a>
+                    </div>
+                    <div>
+                        <h3>Interns</h3>
+                        <a href="{{ url_for('intern_signup') }}">Sign Up</a>
+                        <a href="{{ url_for('intern_login') }}">Login</a>
+                    </div>
                 </div>
             {% endif %}
-        {% endwith %}
-        <form action="{{ url_for('signup') }}" method="POST" onsubmit="return validateForm()">
-            <label for="role">I am a:</label>
-            <select id="role" name="role" onchange="toggleFields()" required>
-                <option value="">Select Role</option>
-                <option value="intern" {% if request.form.get('role') == 'intern' %}selected{% endif %}>Intern</option>
-                <option value="recruiter" {% if request.form.get('role') == 'recruiter' %}selected{% endif %}>Recruiter</option>
-            </select>
-            <span id="role-error" class="error-message">Please select a role.</span>
+        </nav>
+    </header>
 
-            <label for="name">Name:</label>
-            <input type="text" id="name" name="name" value="{{ request.form.get('name', '') }}" required>
-
-            <label for="email">Email:</label>
-            <input type="email" id="email" name="email" value="{{ request.form.get('email', '') }}" required>
-
-            <label for="password">Password:</label>
-            <input type="password" id="password" name="password" required>
-            <span id="password-error" class="error-message">Passwords do not match.</span>
-
-            <label for="confirm_password">Confirm Password:</label>
-            <input type="password" id="confirm_password" name="confirm_password" required>
-
-            <!-- Recruiter-specific fields -->
-            <div id="recruiter-fields" class="recruiter-fields">
-                <div class="form-group">
-                    <div>
-                        <label for="organization_name">Organization/Company Name:</label>
-                        <input type="text" id="organization_name" name="organization_name" value="{{ request.form.get('organization_name', '') }}" class="{% if request.form.get('role') == 'recruiter' and not request.form.get('organization_name') %}error{% endif %}">
-                        <span id="organization-error" class="error-message">Company name is required for recruiters.</span>
-                    </div>
-                    <div>
-                        <label for="contact_details">Contact Details:</label>
-                        <input type="text" id="contact_details" name="contact_details" value="{{ request.form.get('contact_details', '') }}">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <div>
-                        <label for="location">Location:</label>
-                        <input type="text" id="location" name="location" value="{{ request.form.get('location', '') }}">
-                    </div>
-                    <div>
-                        <label for="website_link">Website Link:</label>
-                        <input type="url" id="website_link" name="website_link" value="{{ request.form.get('website_link', '') }}">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Intern-specific field -->
-            <div id="intern-fields" style="display: none;">
-                <label for="skills">Skills (comma-separated):</label>
-                <input type="text" id="skills" name="skills" value="{{ request.form.get('skills', '') }}">
-            </div>
-
-            <button type="submit">Sign Up</button>
-        </form>
-        <div class="login-link">
-            Already have an account? <a href="{{ url_for('login') }}">Login here</a>
-        </div>
+    <div class="hero">
+        <h1>Welcome to SkillSync</h1>
+        <p>Find the best internships tailored to your skills with just a few clicks!</p>
     </div>
 
-    <script>
-        function toggleFields() {
-            const role = document.getElementById('role').value;
-            const recruiterFields = document.getElementById('recruiter-fields');
-            const internFields = document.getElementById('intern-fields');
-            const organizationInput = document.getElementById('organization_name');
-            const skillsInput = document.getElementById('skills');
+    <div id="about" class="about">
+        <h2>About SkillSync</h2>
+        <p>
+            SkillSync is an intelligent platform designed to simplify the internship search process. 
+            By analyzing your skills and matching them with internship requirements, we provide you with 
+            the top 5 internships that best suit your profile. With our advanced algorithm, we calculate 
+            the probability of success for each internship, helping you make informed decisions.
+        </p>
+        <p>
+            Whether you're a student looking for your first internship or a professional seeking new opportunities, 
+            SkillSync makes the process seamless and efficient.
+        </p>
+    </div>
 
-            if (role === 'recruiter') {
-                recruiterFields.style.display = 'block';
-                internFields.style.display = 'none';
-                organizationInput.required = true;
-                skillsInput.required = false;
-            } else if (role === 'intern') {
-                recruiterFields.style.display = 'none';
-                internFields.style.display = 'block';
-                organizationInput.required = false;
-                skillsInput.required = true;
-            } else {
-                recruiterFields.style.display = 'none';
-                internFields.style.display = 'none';
-                organizationInput.required = false;
-                skillsInput.required = false;
-            }
-        }
+    <div id="features" class="features">
+        <h2>Features We Offer</h2>
+        <ul>
+            <li>AI-powered internship matching based on your skills and preferences.</li>
+            <li>Top 5 internship recommendations with success probability scores.</li>
+            <li>Easy-to-use ATS-friendly resume creation tool.</li>
+            <li>Real-time updates on applied internships and recruiter feedback.</li>
+            <li>Secure and user-friendly platform for both interns and recruiters.</li>
+        </ul>
+    </div>
 
-        function validateForm() {
-            const role = document.getElementById('role').value;
-            const roleError = document.getElementById('role-error');
-            const password = document.getElementById('password').value;
-            const confirmPassword = document.getElementById('confirm_password').value;
-            const passwordError = document.getElementById('password-error');
-            const organization = document.getElementById('organization_name').value.trim();
-            const organizationError = document.getElementById('organization-error');
-            const organizationInput = document.getElementById('organization_name');
-
-            let isValid = true;
-
-            // Validate role
-            if (!role) {
-                document.getElementById('role').classList.add('error');
-                roleError.style.display = 'block';
-                isValid = false;
-            } else {
-                roleError.style.display = 'none';
-            }
-
-            // Validate password match
-            if (password !== confirmPassword) {
-                document.getElementById('password').classList.add('error');
-                document.getElementById('confirm_password').classList.add('error');
-                passwordError.style.display = 'block';
-                isValid = false;
-            } else {
-                passwordError.style.display = 'none';
-            }
-
-            // Validate organization name for recruiters
-            if (role === 'recruiter' && !organization) {
-                organizationInput.classList.add('error');
-                organizationError.style.display = 'block';
-                isValid = false;
-            } else {
-                organizationError.style.display = 'none';
-            }
-
-            return isValid;
-        }
-
-        // Run on page load to set initial state
-        toggleFields();
-    </script>
+    <div id="contact" class="contact">
+        <h2>Contact Us</h2>
+        <p>Email: support@skillsync.com</p>
+        <p>Phone: +1-800-555-1234</p>
+        <p>Address: 123 Internship Lane, Tech City, USA</p>
+    </div>
 </body>
 </html>
