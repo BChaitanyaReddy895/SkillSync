@@ -17,14 +17,13 @@ app.secret_key = os.getenv('FLASK_SECRET_KEY', 'default_secret_key')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # Set NLTK data path to a writable directory
-NLTK_DATA_DIR = '/app/nltk_data'  # Use a directory within the project
-os.makedirs(NLTK_DATA_DIR, exist_ok=True)  # Create the directory if it doesn't exist
+NLTK_DATA_DIR = '/tmp/nltk_data'  # Use /tmp, which is writable in most containerized environments
 nltk.data.path.append(NLTK_DATA_DIR)  # Add the directory to NLTK's data path
 
 # Download NLTK dependencies
 try:
-    nltk.download('punkt', download_dir=NLTK_DATA_DIR)
-    nltk.download('stopwords', download_dir=NLTK_DATA_DIR)
+    nltk.download('punkt', download_dir=NLTK_DATA_DIR, quiet=True)
+    nltk.download('stopwords', download_dir=NLTK_DATA_DIR, quiet=True)
 except Exception as e:
     print(f"Failed to download NLTK data: {e}")
 
