@@ -52,14 +52,6 @@
 
         .container {
             padding: 20px;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        h1 {
-            color: #00796b;
-            text-align: center;
-            margin-bottom: 20px;
         }
 
         .button {
@@ -78,36 +70,16 @@
             background-color: #005a4f;
         }
 
-        .info-section {
-            background-color: white;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            padding: 15px;
-            margin: 20px 0;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-
-        .info-section p {
-            margin: 5px 0;
-            color: #333;
-        }
-
-        .flash-messages {
-            margin: 10px 0;
-        }
-
-        .flash-messages .success {
+        .success {
             color: green;
-            background-color: #e0f2e9;
-            padding: 10px;
-            border-radius: 5px;
+            font-weight: bold;
+            margin-bottom: 10px;
         }
 
-        .flash-messages .error {
+        .error {
             color: red;
-            background-color: #ffe6e6;
-            padding: 10px;
-            border-radius: 5px;
+            font-weight: bold;
+            margin-bottom: 10px;
         }
     </style>
 </head>
@@ -122,7 +94,7 @@
     <div class="container">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-                <div class="flash-messages">
+                <div>
                 {% for category, message in messages %}
                     <p class="{{ category }}">{{ message }}</p>
                 {% endfor %}
@@ -130,15 +102,13 @@
             {% endif %}
         {% endwith %}
         <h1>Recruiter Dashboard</h1>
-        <div class="info-section">
-            <h2>Welcome, {{ recruiter['name'] }}</h2>
-            <p><strong>Organization:</strong> {{ recruiter.get('company', 'Not specified') }}</p>
-            <p><strong>Email:</strong> {{ recruiter.get('email', 'Not specified') }}</p>
-        </div>
-        <div>
-            <a href="{{ url_for('register_internship') }}" class="button">Register Internship</a>
-            <a href="{{ url_for('match_resumes', internship_id='1') }}" class="button">View Matched Applicants</a>
-        </div>
+        <h1>Welcome, {{ recruiter['name'] }}</h1>
+        <p><strong>Organization:</strong> {{ recruiter.get('company', 'Not specified') }}</p>
+        <p><strong>Email:</strong> {{ recruiter.get('email', 'Not specified') }}</p>
+        <a href="{{ url_for('register_internship') }}" class="button">Register Internship</a>
+        <a href="{{ url_for('applied_applicants') }}" class="button">Display Applied Applicants</a>
+        <a href="{{ url_for('top_matched_applicants', internship_id='1') }}" class="button">Top Matched Applicants</a>
+        <a href="{{ url_for('edit_organization_profile') }}" class="button">Edit Organization Profile</a>
     </div>
 
     <script>
