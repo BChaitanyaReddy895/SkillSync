@@ -143,7 +143,7 @@
                 </div>
             {% endif %}
         {% endwith %}
-        <form action="{{ url_for('recruiter_login') }}" method="POST">
+        <form id="login-form" action="{{ url_for('recruiter_login') }}" method="POST">
             <label for="email">Email</label>
             <input type="email" id="email" name="email" placeholder="Enter your email" value="{{ request.form.get('email', '') }}" autocomplete="email" required>
 
@@ -158,9 +158,11 @@
     </div>
 
     <script>
-        document.getElementById('login-button').addEventListener('click', function() {
-            this.disabled = true;
-            this.querySelector('.loading').style.display = 'inline-block';
+        document.getElementById('login-form').addEventListener('submit', function(event) {
+            const button = document.getElementById('login-button');
+            button.disabled = true;
+            button.querySelector('.loading').style.display = 'inline-block';
+            console.log("Form submission initiated for recruiter login");
         });
 
         // Show pop-up for signup success
