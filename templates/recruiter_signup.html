@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Intern Sign Up - SkillSync</title>
+    <title>Recruiter Sign Up - SkillSync</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -144,7 +144,7 @@
         </div>
     </header>
     <div class="container">
-        <h1>Intern Sign Up</h1>
+        <h1>Recruiter Sign Up</h1>
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 <div>
@@ -154,7 +154,7 @@
                 </div>
             {% endif %}
         {% endwith %}
-        <form action="{{ url_for('intern_signup') }}" method="POST" onsubmit="return validateForm()">
+        <form action="{{ url_for('recruiter_signup') }}" method="POST" onsubmit="return validateForm()">
             <label for="name">Name:</label>
             <input type="text" id="name" name="name" value="{{ request.form.get('name', '') }}" required>
 
@@ -168,14 +168,14 @@
             <label for="confirm_password">Confirm Password:</label>
             <input type="password" id="confirm_password" name="confirm_password" required>
 
-            <label for="skills">Skills (comma-separated):</label>
-            <input type="text" id="skills" name="skills" value="{{ request.form.get('skills', '') }}" required>
-            <span id="skills-error" class="error-message">Skills are required.</span>
+            <label for="company">Organization/Company Name:</label>
+            <input type="text" id="company" name="company" value="{{ request.form.get('company', '') }}" class="{% if not request.form.get('company') and request.form %}error{% endif %}" required>
+            <span id="company-error" class="error-message">Company name is required.</span>
 
             <button type="submit" id="signup-button">Sign Up <span class="loading"></span></button>
         </form>
         <div class="login-link">
-            Already have an account? <a href="{{ url_for('intern_login') }}">Login here</a>
+            Already have an account? <a href="{{ url_for('recruiter_login') }}">Login here</a>
         </div>
     </div>
 
@@ -184,8 +184,9 @@
             const password = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirm_password').value;
             const passwordError = document.getElementById('password-error');
-            const skills = document.getElementById('skills').value.trim();
-            const skillsError = document.getElementById('skills-error');
+            const company = document.getElementById('company').value.trim();
+            const companyError = document.getElementById('company-error');
+            const companyInput = document.getElementById('company');
 
             let isValid = true;
 
@@ -199,13 +200,13 @@
                 passwordError.style.display = 'none';
             }
 
-            // Validate skills
-            if (!skills) {
-                document.getElementById('skills').classList.add('error');
-                skillsError.style.display = 'block';
+            // Validate company name
+            if (!company) {
+                companyInput.classList.add('error');
+                companyError.style.display = 'block';
                 isValid = false;
             } else {
-                skillsError.style.display = 'none';
+                companyError.style.display = 'none';
             }
 
             if (isValid) {
