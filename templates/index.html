@@ -55,6 +55,56 @@
             color: #00796b;
         }
 
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-button {
+            color: white;
+            font-size: 16px;
+            padding: 8px 16px;
+            border: 1px solid white;
+            border-radius: 5px;
+            background-color: transparent;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .dropdown-button:hover {
+            background-color: white;
+            color: #00796b;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: white;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1;
+            border-radius: 5px;
+            right: 0;
+        }
+
+        .dropdown-content a {
+            color: #00796b;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            border: none;
+            text-align: left;
+        }
+
+        .dropdown-content a:hover {
+            background-color: #e0f2e9;
+            color: #005a4f;
+        }
+
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+
         .hero {
             text-align: center;
             padding: 50px 20px;
@@ -70,39 +120,6 @@
             font-size: 18px;
             color: #555;
             margin: 20px 0;
-        }
-
-        .role-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 40px;
-            margin-top: 30px;
-        }
-
-        .role-buttons div {
-            text-align: center;
-        }
-
-        .role-buttons h3 {
-            font-size: 20px;
-            color: #00796b;
-            margin-bottom: 10px;
-        }
-
-        .role-buttons a {
-            display: inline-block;
-            padding: 10px 20px;
-            margin: 5px;
-            background-color: #00796b;
-            color: white;
-            text-decoration: none;
-            border-radius: 5px;
-            font-size: 16px;
-            transition: background-color 0.3s ease;
-        }
-
-        .role-buttons a:hover {
-            background-color: #005a4f;
         }
 
         .about, .features {
@@ -169,16 +186,18 @@
                 <span>Welcome, {{ session['user_name'] }}</span>
                 <a href="{{ url_for('logout') }}">Logout</a>
             {% else %}
-                <div class="role-buttons">
-                    <div>
-                        <h3>Recruiters</h3>
-                        <a href="{{ url_for('recruiter_signup') }}">Sign Up</a>
-                        <a href="{{ url_for('recruiter_login') }}">Login</a>
+                <div class="dropdown">
+                    <button class="dropdown-button">Sign Up</button>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('recruiter_signup') }}">Recruiter Sign Up</a>
+                        <a href="{{ url_for('intern_signup') }}">Intern Sign Up</a>
                     </div>
-                    <div>
-                        <h3>Interns</h3>
-                        <a href="{{ url_for('intern_signup') }}">Sign Up</a>
-                        <a href="{{ url_for('intern_login') }}">Login</a>
+                </div>
+                <div class="dropdown">
+                    <button class="dropdown-button">Login</button>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('recruiter_login') }}">Recruiter Login</a>
+                        <a href="{{ url_for('intern_login') }}">Intern Login</a>
                     </div>
                 </div>
             {% endif %}
