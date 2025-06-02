@@ -56,7 +56,7 @@
             margin: 0 auto;
         }
 
-        h1 {
+        h1, h2 {
             color: #00796b;
             text-align: center;
             margin-bottom: 20px;
@@ -123,13 +123,38 @@
             text-decoration: none;
             border-radius: 5px;
             font-size: 16px;
-            transition: background-color 0.3s ease;
             border: none;
             cursor: pointer;
+            transition: background-color 0.3s ease;
+            position: relative;
         }
 
         .apply-button:hover {
             background-color: #005a4f;
+        }
+
+        .apply-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .apply-button .loading {
+            display: none;
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 16px;
+            height: 16px;
+            border: 2px solid white;
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: translateY(-50%) rotate(0deg); }
+            100% { transform: translateY(-50%) rotate(360deg); }
         }
 
         .applied-label {
@@ -147,7 +172,7 @@
     <header>
         <img src="{{ url_for('static', filename='logo.png') }}" alt="SkillSync Logo">
         <nav>
-            <span>Welcome, {{ user_name }}</span>
+            <span>Welcome, {{ session['user_name'] }}</span>
             <a href="{{ url_for('logout') }}">Logout</a>
         </nav>
     </header>
@@ -165,38 +190,34 @@
         {% endwith %}
         
         <div>
-            <a href="{{ url_for('create_resume') }}" class="button">Create ATS-Friendly Resume</a>
-            <a href="{{ url_for('edit_resume') }}" class="button">Edit Resume</a>
-            <a href="{{ url_for('match') }}" class="button">Matched Internships</a>
-            <a href="{{ url_for('applied_internships') }}" class="button">Applied Internships</a>
-            <a href="{{ url_for('edit_profile') }}" class="button">Edit Profile</a>
+            <a href="{{ url_for('upload_resume') }}" class="button">Upload Resume</a>
         </div>
         
-        <h2>Matched Internships</h2>
-        {% if matched_internships %}
-            {% for internship in matched_internships %}
+        <h2>Available Internships</h2>
+        {% if internships %}
+            {% for internship in internships %}
                 <div class="internship">
-                    <h3>{{ internship.internship_title }} at {{ internship.company }}</h3>
-                    <p><strong>Type:</strong> {{ internship.type_of_internship }}</p>
-                    <p><strong>Duration:</strong> {{ internship.duration }}</p>
-                    <p><strong>Location:</strong> {{ internship.location }}</p>
-                    <p><strong>Skills Required:</strong> {{ internship.skills_required }}</p>
-                    <p><strong>Similarity Score:</strong> {{ internship.similarity_score }}%</p>
-                    {% if internship.similarity_score > 75 %}
-                        {% if internship.id in applied_internship_ids %}
-                            <span class="applied-label">Applied</span>
-                        {% else %}
-                            <form action="{{ url_for('apply_internship') }}" method="POST">
-                                <input type="hidden" name="internship_id" value="{{ internship.id }}">
-                                <button type="submit" class="apply-button">Apply</button>
-                            </form>
-                        {% endif %}
-                    {% endif %}
+                    <h3>{{ internship['title'] }}</h3>
+                    <p><strong>Description:</strong> {{ internship['description'] }}</p>
+                    <p><strong>Skills Required:</strong> {{ internship['skills_required'] }}</p>
                 </div>
             {% endfor %}
         {% else %}
-            <p>No matched internships found. Create or update your resume to find matches.</p>
+            <p>No internships available at the moment.</p>
         {% endif %}
     </div>
+
+    <script>
+        {% if login_success %}
+            alert('Login successful! Welcome to your dashboard.');
+        {% endif %}
+
+        document.querySelectorAll('.apply-button').forEach(button => {
+            button.addEventListener('click', function() {
+                this.disabled = true;
+                this.querySelector('.loading').style.display = 'inline-block';
+            });
+        });
+    </script>
 </body>
 </html>
