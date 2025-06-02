@@ -154,7 +154,7 @@
                 </div>
             {% endif %}
         {% endwith %}
-        <form action="{{ url_for('recruiter_signup') }}" method="POST" onsubmit="return validateForm()">
+        <form id="signup-form" action="{{ url_for('recruiter_signup') }}" method="POST" onsubmit="return handleSubmit(event)">
             <label for="name">Name:</label>
             <input type="text" id="name" name="name" value="{{ request.form.get('name', '') }}" required>
 
@@ -180,7 +180,7 @@
     </div>
 
     <script>
-        function validateForm() {
+        function handleSubmit(event) {
             const password = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirm_password').value;
             const passwordError = document.getElementById('password-error');
@@ -213,6 +213,10 @@
                 const button = document.getElementById('signup-button');
                 button.disabled = true;
                 button.querySelector('.loading').style.display = 'inline-block';
+                console.log("Form submission initiated for recruiter signup");
+            } else {
+                event.preventDefault();
+                console.log("Form validation failed");
             }
 
             return isValid;
