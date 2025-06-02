@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matched Internships</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .internship { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>Matched Internships</h1>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div>
+            {% for category, message in messages %}
+                <p class="{{ category }}">{{ message }}</p>
+            {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+    {% if matched_internships %}
+        {% for internship in matched_internships %}
+            <div class="internship">
+                <h3>{{ internship.role }} at {{ internship.company_name }}</h3>
+                <p><strong>Type:</strong> {{ internship.type_of_internship }}</p>
+                <p><strong>Duration:</strong> {{ internship.duration }}</p>
+                <p><strong>Location:</strong> {{ internship.location }}</p>
+                <p><strong>Skills Required:</strong> {{ internship.skills_required }}</p>
+                <p><strong>Similarity Score:</strong> {{ internship.similarity_score }}%</p>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>No matched internships found.</p>
+    {% endif %}
+    <a href="{{ url_for('intern_dashboard') }}">Back to Dashboard</a>
+</body>
+</html>
