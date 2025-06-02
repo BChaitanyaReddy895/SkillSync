@@ -123,38 +123,13 @@
             text-decoration: none;
             border-radius: 5px;
             font-size: 16px;
+            transition: background-color 0.3s ease;
             border: none;
             cursor: pointer;
-            transition: background-color 0.3s ease;
-            position: relative;
         }
 
         .apply-button:hover {
             background-color: #005a4f;
-        }
-
-        .apply-button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
-
-        .apply-button .loading {
-            display: none;
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 16px;
-            height: 16px;
-            border: 2px solid white;
-            border-top: 2px solid transparent;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: translateY(-50%) rotate(0deg); }
-            100% { transform: translateY(-50%) rotate(360deg); }
         }
 
         .applied-label {
@@ -190,7 +165,12 @@
         {% endwith %}
         
         <div>
+            <a href="{{ url_for('create_resume') }}" class="button">Create Resume</a>
+            <a href="{{ url_for('edit_resume') }}" class="button">Edit Resume</a>
             <a href="{{ url_for('upload_resume') }}" class="button">Upload Resume</a>
+            <a href="{{ url_for('match') }}" class="button">Match Internships</a>
+            <a href="{{ url_for('applied_internships') }}" class="button">Applied Internships</a>
+            <a href="{{ url_for('edit_profile') }}" class="button">Edit Profile</a>
         </div>
         
         <h2>Available Internships</h2>
@@ -200,6 +180,14 @@
                     <h3>{{ internship['title'] }}</h3>
                     <p><strong>Description:</strong> {{ internship['description'] }}</p>
                     <p><strong>Skills Required:</strong> {{ internship['skills_required'] }}</p>
+                    {% if internship.get('id') in applied_internship_ids %}
+                        <span class="applied-label">Applied</span>
+                    {% else %}
+                        <form action="{{ url_for('apply_internship') }}" method="POST">
+                            <input type="hidden" name="internship_id" value="{{ internship.get('id') }}">
+                            <button type="submit" class="apply-button">Apply</button>
+                        </form>
+                    {% endif %}
                 </div>
             {% endfor %}
         {% else %}
@@ -211,13 +199,6 @@
         {% if login_success %}
             alert('Login successful! Welcome to your dashboard.');
         {% endif %}
-
-        document.querySelectorAll('.apply-button').forEach(button => {
-            button.addEventListener('click', function() {
-                this.disabled = true;
-                this.querySelector('.loading').style.display = 'inline-block';
-            });
-        });
     </script>
 </body>
 </html>
