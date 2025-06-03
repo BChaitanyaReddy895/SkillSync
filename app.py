@@ -113,17 +113,13 @@ def jaccard_similarity(vec1, vec2):
 def index():
     return render_template('index.html')
 
-@app.route('/signup', methods=['GET', 'POST'])
-def signup():
+@app.route('/intern_signup', methods=['GET', 'POST'])
+def intern_signup():
     if request.method == 'POST':
         name = request.form['name']
         email = request.form['email']
         password = request.form['password']
-        role = request.form['role']
-        organization_name = request.form.get('organization_name', '')
-        contact_details = request.form.get('contact_details', '')
-        location = request.form.get('location', '')
-        website_link = request.form.get('website_link', '')
+        skills = request.form['skills']
 
         # Hash the password
         from werkzeug.security import generate_password_hash
@@ -132,7 +128,7 @@ def signup():
         # Check if email already exists
         if db.users.find_one({"email": email}):
             flash('Email already exists!', 'danger')
-            return redirect(url_for('signup'))
+            return redirect(url_for('intern_signup'))
 
         # Get the highest user_id and increment
         max_user = db.users.find_one(sort=[("user_id", -1)])
@@ -144,38 +140,86 @@ def signup():
             "name": name,
             "email": email,
             "password": hashed_password,
-            "role": role,
-            "organization_name": organization_name,
-            "contact_details": contact_details,
-            "location": location,
-            "website_link": website_link
+            "role": "intern",
+            "skills": skills
         }
         db.users.insert_one(user)
         flash('Signup successful! Please login.', 'success')
-        return redirect(url_for('login'))
-    return render_template('signup.html')
+        return redirect(url_for('intern_login', signup_success='true'))
+    return render_template('intern_signup.html')
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
+@app.route('/recruiter_signup', methods=['GET', 'POST'])
+def recruiter_signup():
+    if request.method == 'POST':
+        name = request.form['name']
+        email = request.form['email']
+        password = request.form['password']
+        company = request.form['company']
+
+        # Hash the password
+        from werkzeug.security import generate_password_hash
+        hashed_password = generate_password_hash(password, method='pbkdf2:sha256', salt_length=16)
+
+        # Check if email already exists
+        if db.users.find_one({"email": email}):
+            flash('Email already exists!', 'danger')
+            return redirect(url_for('recruiter_signup'))
+
+        # Get the highest user_id and increment
+        max_user = db.users.find_one(sort=[("user_id", -1)])
+        new_user_id = (max_user['user_id'] + 1) if max_user and 'user_id' in max_user else 1
+
+        # Insert new user
+        user = {
+            "user_id": new_user_id,
+            "name": name,
+            "email": email,
+            "password": hashed_password,
+            "role": "recruiter",
+            "organization_name": company
+        }
+        db.users.insert_one(user)
+        flash('Signup successful! Please login.', 'success')
+        return redirect(url_for('recruiter_login', signup_success='true'))
+    return render_template('recruiter_signup.html')
+
+@app.route('/intern_login', methods=['GET', 'POST'])
+def intern_login():
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
 
         from werkzeug.security import check_password_hash
-        user = db.users.find_one({"email": email})
+        user = db.users.find_one({"email": email, "role": "intern"})
 
         if user and check_password_hash(user['password'], password):
             session['user_id'] = str(user['user_id'])
             session['user_name'] = user['name']
             session['role'] = user['role']
             flash('Login successful!', 'success')
-            if user['role'] == 'intern':
-                return redirect(url_for('intern_dashboard', login_success='true'))
-            else:
-                return redirect(url_for('recruiter_dashboard', login_success='true'))
+            return redirect(url_for('intern_dashboard', login_success='true'))
         else:
             flash('Invalid email or password!', 'danger')
-    return render_template('login.html')
+    return render_template('intern_login.html')
+
+@app.route('/recruiter_login', methods=['GET', 'POST'])
+def recruiter_login():
+    if request.method == 'POST':
+        email = request.form['email']
+        password = request.form['password']
+
+        from werkzeug.security import check_password_hash
+        user = db.users.find_one({"email": email, "role": "recruiter"})
+
+        if user and check_password_hash(user['password'], password):
+            session['user_id'] = str(user['user_id'])
+            session['user_name'] = user['name']
+            session['role'] = user['role']
+            flash('Login successful!', 'success')
+            return redirect(url_for('recruiter_dashboard', login_success='true'))
+        else:
+            flash('Invalid email or password!', 'danger')
+    return render_template('recruiter_login.html')
 
 @app.route('/logout')
 def logout():
@@ -189,7 +233,7 @@ def logout():
 def intern_dashboard():
     if 'user_id' not in session or session['role'] != 'intern':
         flash('Please login as an intern!', 'danger')
-        return redirect(url_for('login'))
+        return redirect(url_for('intern_login'))
 
     user_id = session['user_id']
     resume = db.resume_info.find_one({"user_id": user_id})
@@ -232,7 +276,7 @@ def intern_dashboard():
 def create_resume():
     if 'user_id' not in session or session['role'] != 'intern':
         flash('Please login as an intern!', 'danger')
-        return redirect(url_for('login'))
+        return redirect(url_for('intern_login'))
 
     if request.method == 'POST':
         name = request.form['name']
@@ -266,7 +310,7 @@ def create_resume():
 def edit_resume():
     if 'user_id' not in session or session['role'] != 'intern':
         flash('Please login as an intern!', 'danger')
-        return redirect(url_for('login'))
+        return redirect(url_for('intern_login'))
 
     user_id = session['user_id']
     resume = db.resume_info.find_one({"user_id": user_id})
@@ -307,7 +351,7 @@ def edit_resume():
 def upload_resume():
     if 'user_id' not in session or session['role'] != 'intern':
         flash('Please login as an intern!', 'danger')
-        return redirect(url_for('login'))
+        return redirect(url_for('intern_login'))
 
     if request.method == 'POST':
         if 'resume' not in request.files:
@@ -343,7 +387,7 @@ def upload_resume():
 def match():
     if 'user_id' not in session or session['role'] != 'intern':
         flash('Please login as an intern!', 'danger')
-        return redirect(url_for('login'))
+        return redirect(url_for('intern_login'))
 
     user_id = session['user_id']
     resume = db.resume_info.find_one({"user_id": user_id})
@@ -381,7 +425,7 @@ def match():
 def download_resume():
     if 'user_id' not in session or session['role'] != 'intern':
         flash('Please login as an intern!', 'danger')
-        return redirect(url_for('login'))
+        return redirect(url_for('intern_login'))
 
     user_id = session['user_id']
     resume = db.resume_info.find_one({"user_id": user_id})
@@ -399,7 +443,7 @@ def download_resume():
 def apply_internship(internship_id):
     if 'user_id' not in session or session['role'] != 'intern':
         flash('Please login as an intern!', 'danger')
-        return redirect(url_for('login'))
+        return redirect(url_for('intern_login'))
 
     user_id = session['user_id']
     # Check if the user has already applied
@@ -421,7 +465,7 @@ def apply_internship(internship_id):
 def applied_internships():
     if 'user_id' not in session or session['role'] != 'intern':
         flash('Please login as an intern!', 'danger')
-        return redirect(url_for('login'))
+        return redirect(url_for('intern_login'))
 
     user_id = session['user_id']
     applications = list(db.applications.find({"user_id": user_id}))
@@ -433,7 +477,7 @@ def applied_internships():
 def recruiter_dashboard():
     if 'user_id' not in session or session['role'] != 'recruiter':
         flash('Please login as a recruiter!', 'danger')
-        return redirect(url_for('login'))
+        return redirect(url_for('recruiter_login'))
 
     user_id = session['user_id']
     recruiter = db.users.find_one({"user_id": user_id})
@@ -445,14 +489,14 @@ def recruiter_dashboard():
 def register_internship():
     if 'user_id' not in session or session['role'] != 'recruiter':
         flash('Please login as a recruiter!', 'danger')
-        return redirect(url_for('login'))
+        return redirect(url_for('recruiter_login'))
 
     user_id = session['user_id']
     # Fetch recruiter details to display in the template
     recruiter = db.users.find_one({"user_id": user_id})
     if not recruiter:
         flash('Recruiter profile not found!', 'danger')
-        return redirect(url_for('login'))
+        return redirect(url_for('recruiter_login'))
 
     if request.method == 'POST':
         role = request.form['role']
@@ -495,7 +539,7 @@ def register_internship():
 
         # Get the highest internship_id and increment
         max_internship = db.internship_info.find_one(sort=[("id", -1)])
-        new_internship_id = (max_internship['id'] + 1) if max_internship and 'id' in max_internship else 1
+        new_internship_id = (max_internship['id'] + 1) if max_internship and 'id' in max_user else 1
 
         # Insert internship
         internship = {
@@ -526,7 +570,7 @@ def register_internship():
 def applied_applicants():
     if 'user_id' not in session or session['role'] != 'recruiter':
         flash('Please login as a recruiter!', 'danger')
-        return redirect(url_for('login'))
+        return redirect(url_for('recruiter_login'))
 
     user_id = session['user_id']
     # Fetch internships posted by this recruiter
@@ -553,7 +597,7 @@ def applied_applicants():
 def applied_applicants_specific(internship_id):
     if 'user_id' not in session or session['role'] != 'recruiter':
         flash('Please login as a recruiter!', 'danger')
-        return redirect(url_for('login'))
+        return redirect(url_for('recruiter_login'))
 
     applications = list(db.applications.find({"internship_id": internship_id}))
     user_ids = [app['user_id'] for app in applications]
@@ -576,7 +620,7 @@ def applied_applicants_specific(internship_id):
 def top_matched_applicants(internship_id):
     if 'user_id' not in session or session['role'] != 'recruiter':
         flash('Please login as a recruiter!', 'danger')
-        return redirect(url_for('login'))
+        return redirect(url_for('recruiter_login'))
 
     internship = internship_df[internship_df['id'] == internship_id].iloc[0]
     internship_vector = internship['Required_Skill_vector']
@@ -600,7 +644,7 @@ def top_matched_applicants(internship_id):
 def edit_profile():
     if 'user_id' not in session:
         flash('Please login!', 'danger')
-        return redirect(url_for('login'))
+        return redirect(url_for('intern_login' if session.get('role') == 'intern' else 'recruiter_login'))
 
     user_id = session['user_id']
     user = db.users.find_one({"user_id": user_id})
@@ -621,7 +665,7 @@ def edit_profile():
 def edit_organization_profile():
     if 'user_id' not in session or session['role'] != 'recruiter':
         flash('Please login as a recruiter!', 'danger')
-        return redirect(url_for('login'))
+        return redirect(url_for('recruiter_login'))
 
     user_id = session['user_id']
     user = db.users.find_one({"user_id": user_id})
