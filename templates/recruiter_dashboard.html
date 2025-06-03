@@ -52,6 +52,14 @@
 
         .container {
             padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1, h2 {
+            color: #00796b;
+            text-align: center;
+            margin-bottom: 20px;
         }
 
         .button {
@@ -74,12 +82,53 @@
             color: green;
             font-weight: bold;
             margin-bottom: 10px;
+            background-color: #e0f2e9;
+            padding: 10px;
+            border-radius: 5px;
         }
 
         .error {
             color: red;
             font-weight: bold;
             margin-bottom: 10px;
+            background-color: #ffe6e6;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .internship {
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .internship h3 {
+            color: #00796b;
+            margin: 0 0 10px;
+        }
+
+        .internship p {
+            margin: 5px 0;
+            color: #333;
+        }
+
+        .action-button {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 5px 0;
+            background-color: #00796b;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+
+        .action-button:hover {
+            background-color: #005a4f;
         }
     </style>
 </head>
@@ -102,13 +151,33 @@
             {% endif %}
         {% endwith %}
         <h1>Recruiter Dashboard</h1>
-        <h1>Welcome, {{ recruiter['name'] }}</h1>
-        <p><strong>Organization:</strong> {{ recruiter.get('company', 'Not specified') }}</p>
-        <p><strong>Email:</strong> {{ recruiter.get('email', 'Not specified') }}</p>
-        <a href="{{ url_for('register_internship') }}" class="button">Register Internship</a>
-        <a href="{{ url_for('applied_applicants') }}" class="button">Display Applied Applicants</a>
-        <a href="{{ url_for('top_matched_applicants', internship_id='1') }}" class="button">Top Matched Applicants</a>
-        <a href="{{ url_for('edit_organization_profile') }}" class="button">Edit Organization Profile</a>
+        <h1>Welcome, {{ recruiter['name'] if recruiter else 'Recruiter' }}</h1>
+        <p><strong>Organization:</strong> {{ recruiter.get('organization_name', 'Not specified') if recruiter else 'Not specified' }}</p>
+        <p><strong>Email:</strong> {{ recruiter.get('email', 'Not specified') if recruiter else 'Not specified' }}</p>
+        <div>
+            <a href="{{ url_for('register_internship') }}" class="button">Register Internship</a>
+            <a href="{{ url_for('applied_applicants') }}" class="button">Display Applied Applicants</a>
+            <a href="{{ url_for('edit_organization_profile') }}" class="button">Edit Organization Profile</a>
+        </div>
+
+        <h2>Your Posted Internships</h2>
+        {% if internships %}
+            {% for internship in internships %}
+                <div class="internship">
+                    <h3>{{ internship.get('role', 'N/A') }}</h3>
+                    <p><strong>Description:</strong> {{ internship.get('description_of_internship', 'N/A') }}</p>
+                    <p><strong>Skills Required:</strong> {{ internship.get('skills_required', 'N/A') }}</p>
+                    <p><strong>Duration:</strong> {{ internship.get('duration', 'N/A') }}</p>
+                    <p><strong>Type:</strong> {{ internship.get('type_of_internship', 'N/A') }}</p>
+                    <p><strong>Location:</strong> {{ internship.get('location', 'N/A') }}</p>
+                    <p><strong>Posted Date:</strong> {{ internship.get('posted_date', 'N/A') }}</p>
+                    <a href="{{ url_for('top_matched_applicants', internship_id=internship.get('id')) }}" class="action-button">Top Matched Applicants</a>
+                    <a href="{{ url_for('applied_applicants_specific', internship_id=internship.get('id')) }}" class="action-button">View Applicants</a>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>You have not posted any internships yet.</p>
+        {% endif %}
     </div>
 
     <script>
