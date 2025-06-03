@@ -539,7 +539,7 @@ def register_internship():
 
         # Get the highest internship_id and increment
         max_internship = db.internship_info.find_one(sort=[("id", -1)])
-        new_internship_id = (max_internship['id'] + 1) if max_internship and 'id' in max_user else 1
+        new_internship_id = (max_internship['id'] + 1) if max_internship and 'id' in max_internship else 1
 
         # Insert internship
         internship = {
@@ -692,10 +692,6 @@ def edit_organization_profile():
 @app.route('/results')
 def results():
     return render_template('results.html')
-
-@app.teardown_appcontext
-def close_db(exception):
-    client.close()
 
 if __name__ == '__main__':
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
