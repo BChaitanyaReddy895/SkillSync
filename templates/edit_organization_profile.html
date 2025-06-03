@@ -12,6 +12,44 @@
             background-color: #f4f4f9;
         }
 
+        header {
+            background-color: #00796b;
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        header img {
+            height: 50px;
+        }
+
+        nav {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        nav span {
+            font-size: 16px;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            font-size: 16px;
+            padding: 8px 16px;
+            border: 1px solid white;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        nav a:hover {
+            background-color: white;
+            color: #00796b;
+        }
+
         .container {
             max-width: 600px;
             margin: 50px auto;
@@ -24,6 +62,20 @@
         h1 {
             text-align: center;
             color: #00796b;
+        }
+
+        .info {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .info a {
+            color: #00796b;
+            text-decoration: none;
+        }
+
+        .info a:hover {
+            text-decoration: underline;
         }
 
         form {
@@ -60,29 +112,61 @@
         button:hover {
             background-color: #005a4f;
         }
+
+        .flash-messages {
+            margin-bottom: 20px;
+        }
+
+        .success {
+            color: green;
+            background-color: #e0f2e9;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .error {
+            color: red;
+            background-color: #ffe6e6;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
+    <header>
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="SkillSync Logo">
+        <nav>
+            <span>Welcome, {{ session['user_name'] }}</span>
+            <a href="{{ url_for('recruiter_dashboard') }}">Back to Dashboard</a>
+            <a href="{{ url_for('logout') }}">Logout</a>
+        </nav>
+    </header>
     <div class="container">
         <h1>Edit Organization Profile</h1>
-        <form action="/edit_organization_profile" method="POST">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <p class="{{ category }}">{{ message }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        <p class="info">To update your email or password, visit your <a href="{{ url_for('edit_profile') }}">account profile</a>.</p>
+        <form action="{{ url_for('edit_organization_profile') }}" method="POST">
             <label for="organization_name">Organization/Company Name:</label>
-            <input type="text" id="organization_name" name="organization_name" value="{{ recruiter['organization_name'] }}" required>
+            <input type="text" id="organization_name" name="organization_name" value="{{ recruiter.get('organization_name', '') if recruiter else '' }}" required>
 
             <label for="contact_details">Contact Details:</label>
-            <input type="text" id="contact_details" name="contact_details" value="{{ recruiter['contact_details'] }}" required>
+            <input type="text" id="contact_details" name="contact_details" value="{{ recruiter.get('contact_details', '') if recruiter else '' }}">
 
             <label for="location">Location:</label>
-            <input type="text" id="location" name="location" value="{{ recruiter['location'] }}" required>
+            <input type="text" id="location" name="location" value="{{ recruiter.get('location', '') if recruiter else '' }}">
 
             <label for="website_link">Website Link:</label>
-            <input type="url" id="website_link" name="website_link" value="{{ recruiter['website_link'] }}" required>
-
-            <label for="email">Email Address:</label>
-            <input type="email" id="email" name="email" value="{{ recruiter['email'] }}" required>
-
-            <label for="password">New Password (optional):</label>
-            <input type="password" id="password" name="password" placeholder="Enter new password">
+            <input type="url" id="website_link" name="website_link" value="{{ recruiter.get('website_link', '') if recruiter else '' }}">
 
             <button type="submit">Save Changes</button>
         </form>
