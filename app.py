@@ -10,9 +10,10 @@ import os
 import logging
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
+import re
 
-# Configure logging to a file
-log_dir = "logs"
+# Configure logging to a file in a writable directory
+log_dir = "/tmp/logs"  # Use /tmp, which is writable in containerized environments
 os.makedirs(log_dir, exist_ok=True)
 logging.basicConfig(
     filename=os.path.join(log_dir, "app.log"),
@@ -509,7 +510,8 @@ def top_matched_applicants(internship_id):
                 applicants.append({
                     'name': resume['name_of_applicant'],
                     'email': user['email'],
-                    'similarity': round(similarity * 100, 2)
+                    'similarity': round(similarity * 100, 2),
+                    'resume_path': resume.get('resume_path', '')
                 })
     applicants = sorted(applicants, key=lambda x: x['similarity'], reverse=True)[:5]
     return render_template('top_matched_applicants.html', applicants=applicants, internship_id=internship_id)
