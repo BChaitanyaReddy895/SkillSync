@@ -177,14 +177,18 @@
         {% if internships %}
             {% for internship in internships %}
                 <div class="internship">
-                    <h3>{{ internship['title'] }}</h3>
+                    <h3>{{ internship['role'] }}</h3>
+                    <p><strong>Company:</strong> {{ internship['company_name'] }}</p>
                     <p><strong>Description:</strong> {{ internship['description'] }}</p>
                     <p><strong>Skills Required:</strong> {{ internship['skills_required'] }}</p>
+                    <p><strong>Duration:</strong> {{ internship['duration'] }}</p>
+                    <p><strong>Type:</strong> {{ internship['type_of_internship'] }}</p>
+                    <p><strong>Location:</strong> {{ internship['location'] }}</p>
+                    <p><strong>Match Score:</strong> {{ internship['similarity_score'] }}%</p>
                     {% if internship.get('id') in applied_internship_ids %}
                         <span class="applied-label">Applied</span>
                     {% else %}
-                        <form action="{{ url_for('apply_internship') }}" method="POST">
-                            <input type="hidden" name="internship_id" value="{{ internship.get('id') }}">
+                        <form action="{{ url_for('apply_internship', internship_id=internship.get('id')) }}" method="POST">
                             <button type="submit" class="apply-button">Apply</button>
                         </form>
                     {% endif %}
