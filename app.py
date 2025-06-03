@@ -1,119 +1,72 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file
-import pandas as pd
-import nltk
-from nltk.tokenize import word_tokenize
-from nltk.corpus import stopwords
-import string
-from pymongo import MongoClient
-import urllib.parse
 import os
+import re
 from datetime import datetime
+import pandas as pd
+from flask import Flask, render_template, request, redirect, url_for, flash, session
+from pymongo import MongoClient
+from werkzeug.security import generate_password_hash, check_password_hash
 
-# Configuration
-UPLOAD_FOLDER = 'static/uploads'
-ALLOWED_EXTENSIONS = {'pdf'}
 app = Flask(__name__)
-app.secret_key = os.getenv('FLASK_SECRET_KEY', 'default_secret_key')
+app.secret_key = 'your_secret_key_here'  # Replace with a secure key in production
+
+# MongoDB setup
+client = MongoClient('mongodb://localhost:27017/')
+db = client['skillsync_db']
+
+# Define upload folder for resumes
+UPLOAD_FOLDER = os.path.join(os.getcwd(), 'uploads')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# Set NLTK data path to a writable directory
-NLTK_DATA_DIR = '/tmp/nltk_data'  # Use /tmp, which is writable in most containerized environments
-nltk.data.path.append(NLTK_DATA_DIR)  # Add the directory to NLTK's data path
+# Load or initialize internship and resume dataframes (assumed global variables)
+# These are used for matching interns to internships based on skills
+internship_df = pd.DataFrame()
+resume_df = pd.DataFrame()
+skill_to_index = {}
 
-# Download NLTK dependencies
-try:
-    nltk.download('punkt', download_dir=NLTK_DATA_DIR, quiet=True)
-    nltk.download('stopwords', download_dir=NLTK_DATA_DIR, quiet=True)
-except Exception as e:
-    print(f"Failed to download NLTK data: {e}")
-
-# MongoDB Connection
-username = "root"
-password = "Chaitu895@"  # Replace with your actual password
-host = "cluster0.zklixmv.mongodb.net"
-database = "skillsync"
-
-# URL-encode the username and password
-encoded_username = urllib.parse.quote_plus(username)
-encoded_password = urllib.parse.quote_plus(password)
-
-# Construct the MongoDB URI
-MONGO_URI = f"mongodb+srv://{encoded_username}:{encoded_password}@{host}/{database}?retryWrites=true&w=majority&appName=Cluster0"
-client = MongoClient(MONGO_URI)
-db = client['skillsync']
-
-# Preprocessing function for skills
 def preprocess_skills(skills):
-    if not isinstance(skills, str) or skills.strip() == '':
+    if not isinstance(skills, str):
         return []
-    tokens = word_tokenize(skills.lower())
-    tokens = [word for word in tokens if word not in stopwords.words('english') and word not in string.punctuation]
-    return tokens
+    return [skill.strip().lower() for skill in skills.split(',') if skill.strip()]
 
-# Fetch data from MongoDB
-def fetch_data():
-    # Fetch resumes
-    resumes = list(db.resume_info.find())
-    resume_df = pd.DataFrame(resumes)
-    
-    # Fetch internships
+def jaccard_similarity(vector1, vector2):
+    if len(vector1) != len(vector2):
+        return 0.0
+    intersection = sum(a & b for a, b in zip(vector1, vector2))
+    union = sum(a | b for a, b in zip(vector1, vector2))
+    return intersection / union if union != 0 else 0.0
+
+# Initialize data (simplified for this example)
+def initialize_data():
+    global internship_df, resume_df, skill_to_index
+    # Fetch internships from MongoDB
     internships = list(db.internship_info.find())
-    internship_df = pd.DataFrame(internships)
+    if internships:
+        internship_df = pd.DataFrame(internships)
+        # Preprocess skills for vectorization
+        all_skills = set()
+        for skills in internship_df['skills_required']:
+            skills_list = preprocess_skills(skills)
+            all_skills.update(skills_list)
+        skill_to_index = {skill: idx for idx, skill in enumerate(sorted(all_skills))}
+        # Create skill vectors for internships
+        internship_df['Required_Skill_vector'] = internship_df['skills_required'].apply(
+            lambda skills: [1 if skill in preprocess_skills(skills) else 0 for skill in skill_to_index]
+        )
+    else:
+        internship_df = pd.DataFrame()
 
-    # Debug: Check DataFrames and their columns
-    print("resume_df:", resume_df)
-    print("resume_df columns:", resume_df.columns.tolist())
-    print("internship_df:", internship_df)
-    print("internship_df columns:", internship_df.columns.tolist())
+    # Fetch resumes from MongoDB
+    resumes = list(db.resume_info.find())
+    if resumes:
+        resume_df = pd.DataFrame(resumes)
+        resume_df['Skill_vector'] = resume_df['skills'].apply(
+            lambda skills: [1 if skill in preprocess_skills(skills) else 0 for skill in skill_to_index]
+        )
+    else:
+        resume_df = pd.DataFrame()
 
-    # Ensure 'id' column exists in internship_df
-    if 'id' not in internship_df.columns:
-        print("Warning: 'id' column missing in internship_df. Setting default values.")
-        internship_df['id'] = 0  # Default value; adjust as needed
-
-    # Preprocessing
-    resume_df.fillna('', inplace=True)
-    internship_df.fillna('', inplace=True)
-    resume_df['processed_Skills'] = resume_df['skills'].apply(preprocess_skills)
-    internship_df['processed_Required_Skills'] = internship_df['skills_required'].apply(preprocess_skills)
-
-    # Debug: Check processed skills
-    print("resume_df['processed_Skills']:", resume_df['processed_Skills'])
-    print("internship_df['processed_Required_Skills']:", internship_df['processed_Required_Skills'])
-
-    # Create a set of unique skills, handling empty cases
-    resume_skills = resume_df['processed_Skills'].explode().dropna().tolist()
-    internship_skills = internship_df['processed_Required_Skills'].explode().dropna().tolist()
-    all_skills = resume_skills + internship_skills
-
-    # Debug: Check all_skills
-    print("all_skills:", all_skills)
-
-    global skill_to_index
-    skill_to_index = {skill: idx for idx, skill in enumerate(set(all_skills)) if all_skills}  # Avoid empty set
-
-    # Vectorization
-    def skills_to_vector(skills):
-        vector = [0] * len(skill_to_index)
-        for skill in skills:
-            if skill in skill_to_index:
-                vector[skill_to_index[skill]] += 1
-        return vector
-
-    resume_df['Skill_vector'] = resume_df['processed_Skills'].apply(skills_to_vector)
-    internship_df['Required_Skill_vector'] = internship_df['processed_Required_Skills'].apply(skills_to_vector)
-
-    return resume_df, internship_df
-
-# Load data after database initialization
-resume_df, internship_df = fetch_data()
-
-# Jaccard Similarity for matching
-def jaccard_similarity(vec1, vec2):
-    set1, set2 = set(vec1), set(vec2)
-    intersection = len(set1.intersection(set2))
-    union = len(set1.union(set2))
-    return intersection / union if union != 0 else 0
+# Call initialization on app startup
+initialize_data()
 
 # Routes
 @app.route('/')
@@ -129,7 +82,6 @@ def intern_signup():
         skills = request.form['skills']
 
         # Hash the password
-        from werkzeug.security import generate_password_hash
         hashed_password = generate_password_hash(password, method='pbkdf2:sha256', salt_length=16)
 
         # Check if email already exists
@@ -164,7 +116,6 @@ def recruiter_signup():
         company = request.form['company']
 
         # Hash the password
-        from werkzeug.security import generate_password_hash
         hashed_password = generate_password_hash(password, method='pbkdf2:sha256', salt_length=16)
 
         # Check if email already exists
@@ -196,7 +147,6 @@ def intern_login():
         email = request.form['email']
         password = request.form['password']
 
-        from werkzeug.security import check_password_hash
         user = db.users.find_one({"email": email, "role": "intern"})
 
         if user and check_password_hash(user['password'], password):
@@ -215,7 +165,6 @@ def recruiter_login():
         email = request.form['email']
         password = request.form['password']
 
-        from werkzeug.security import check_password_hash
         user = db.users.find_one({"email": email, "role": "recruiter"})
 
         if user and check_password_hash(user['password'], password):
@@ -242,7 +191,7 @@ def intern_dashboard():
         flash('Please login as an intern!', 'danger')
         return redirect(url_for('intern_login'))
 
-    user_id = session['user_id']
+    user_id = int(session['user_id'])  # Convert to int for consistency
     resume = db.resume_info.find_one({"user_id": user_id})
 
     if not resume:
@@ -267,7 +216,7 @@ def intern_dashboard():
             similarity = jaccard_similarity(user_vector, internship['Required_Skill_vector'])
             if similarity > 0:
                 internships.append({
-                    'id': internship.get('id', 0),  # Use .get() to provide a default value if 'id' is missing
+                    'id': internship.get('id', 0),
                     'role': internship.get('role', 'N/A'),
                     'company_name': internship.get('company_name', 'N/A'),
                     'description': internship.get('description_of_internship', 'N/A'),
@@ -297,7 +246,7 @@ def create_resume():
         education = request.form['education']
         certifications = request.form['certifications']
         achievements = request.form['achievements']
-        user_id = session['user_id']
+        user_id = int(session['user_id'])  # Convert to int
 
         resume = {
             "user_id": user_id,
@@ -322,7 +271,7 @@ def edit_resume():
         flash('Please login as an intern!', 'danger')
         return redirect(url_for('intern_login'))
 
-    user_id = session['user_id']
+    user_id = int(session['user_id'])  # Convert to int
     resume = db.resume_info.find_one({"user_id": user_id})
 
     if not resume:
@@ -374,7 +323,7 @@ def upload_resume():
             return redirect(url_for('upload_resume'))
 
         if file and file.filename.endswith('.pdf'):
-            user_id = session['user_id']
+            user_id = int(session['user_id'])  # Convert to int
             filename = f"resume_{user_id}.pdf"
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(file_path)
@@ -399,7 +348,7 @@ def match():
         flash('Please login as an intern!', 'danger')
         return redirect(url_for('intern_login'))
 
-    user_id = session['user_id']
+    user_id = int(session['user_id'])  # Convert to int
     resume = db.resume_info.find_one({"user_id": user_id})
 
     if not resume:
@@ -438,7 +387,7 @@ def download_resume():
         flash('Please login as an intern!', 'danger')
         return redirect(url_for('intern_login'))
 
-    user_id = session['user_id']
+    user_id = int(session['user_id'])  # Convert to int
     resume = db.resume_info.find_one({"user_id": user_id})
 
     if not resume:
@@ -456,7 +405,7 @@ def apply_internship(internship_id):
         flash('Please login as an intern!', 'danger')
         return redirect(url_for('intern_login'))
 
-    user_id = session['user_id']
+    user_id = int(session['user_id'])  # Convert to int
     # Check if the user has already applied
     existing_application = db.applications.find_one({"user_id": user_id, "internship_id": internship_id})
     if existing_application:
@@ -478,7 +427,7 @@ def applied_internships():
         flash('Please login as an intern!', 'danger')
         return redirect(url_for('intern_login'))
 
-    user_id = session['user_id']
+    user_id = int(session['user_id'])  # Convert to int
     applications = list(db.applications.find({"user_id": user_id}))
     internship_ids = [app['internship_id'] for app in applications]
     internships = list(db.internship_info.find({"id": {"$in": internship_ids}}))
@@ -490,8 +439,16 @@ def recruiter_dashboard():
         flash('Please login as a recruiter!', 'danger')
         return redirect(url_for('recruiter_login'))
 
-    user_id = session['user_id']
+    user_id = int(session['user_id'])  # Convert to int for consistency
     recruiter = db.users.find_one({"user_id": user_id})
+    
+    if not recruiter:
+        flash('Recruiter profile not found. Please log in again.', 'danger')
+        session.pop('user_id', None)
+        session.pop('user_name', None)
+        session.pop('role', None)
+        return redirect(url_for('recruiter_login'))
+
     internships = list(db.internship_info.find({"user_id": user_id}))
     login_success = request.args.get('login_success', 'false') == 'true'
     return render_template('recruiter_dashboard.html', recruiter=recruiter, internships=internships, login_success=login_success)
@@ -502,7 +459,7 @@ def register_internship():
         flash('Please login as a recruiter!', 'danger')
         return redirect(url_for('recruiter_login'))
 
-    user_id = session['user_id']
+    user_id = int(session['user_id'])  # Convert to int
     # Fetch recruiter details to display in the template
     recruiter = db.users.find_one({"user_id": user_id})
     if not recruiter:
@@ -542,7 +499,6 @@ def register_internship():
             return render_template('register_internship.html', recruiter=recruiter)
 
         # Validate phone number (basic regex for format like +1-800-555-1234)
-        import re
         phone_pattern = r'^\+\d{1,3}-\d{3}-\d{3}-\d{4}$'
         if not re.match(phone_pattern, phone_number):
             flash('Phone number must be in the format +1-800-555-1234!', 'danger')
@@ -572,6 +528,8 @@ def register_internship():
             "expected_salary": ""  # Not in form, set as empty
         }
         db.internship_info.insert_one(internship)
+        # Reinitialize data to include the new internship
+        initialize_data()
         flash('Internship registered successfully!', 'success')
         return redirect(url_for('recruiter_dashboard'))
 
@@ -583,7 +541,7 @@ def applied_applicants():
         flash('Please login as a recruiter!', 'danger')
         return redirect(url_for('recruiter_login'))
 
-    user_id = session['user_id']
+    user_id = int(session['user_id'])  # Convert to int
     # Fetch internships posted by this recruiter
     recruiter_internships = list(db.internship_info.find({"user_id": user_id}))
     internship_ids = [internship['id'] for internship in recruiter_internships]
@@ -610,6 +568,7 @@ def applied_applicants_specific(internship_id):
         flash('Please login as a recruiter!', 'danger')
         return redirect(url_for('recruiter_login'))
 
+    user_id = int(session['user_id'])  # Convert to int
     applications = list(db.applications.find({"internship_id": internship_id}))
     user_ids = [app['user_id'] for app in applications]
     applicants = []
@@ -670,16 +629,24 @@ def edit_profile():
         flash('Please login!', 'danger')
         return redirect(url_for('intern_login' if session.get('role') == 'intern' else 'recruiter_login'))
 
-    user_id = session['user_id']
+    user_id = int(session['user_id'])  # Convert to int
     user = db.users.find_one({"user_id": user_id})
 
     if request.method == 'POST':
         name = request.form['name']
         email = request.form['email']
+        # Check if email is already in use by another user
+        existing_user = db.users.find_one({"email": email, "user_id": {"$ne": user_id}})
+        if existing_user:
+            flash('Email is already in use by another user!', 'error')
+            return render_template('edit_profile.html', user=user)
+
         db.users.update_one(
             {"user_id": user_id},
             {"$set": {"name": name, "email": email}}
         )
+        # Update session user_name if name changes
+        session['user_name'] = name
         flash('Profile updated successfully!', 'success')
         return redirect(url_for('intern_dashboard' if session['role'] == 'intern' else 'recruiter_dashboard'))
 
@@ -691,27 +658,47 @@ def edit_organization_profile():
         flash('Please login as a recruiter!', 'danger')
         return redirect(url_for('recruiter_login'))
 
-    user_id = session['user_id']
+    user_id = int(session['user_id'])  # Convert to int
     user = db.users.find_one({"user_id": user_id})
 
+    if not user:
+        flash('Recruiter profile not found. Please log in again.', 'danger')
+        session.pop('user_id', None)
+        session.pop('user_name', None)
+        session.pop('role', None)
+        return redirect(url_for('recruiter_login'))
+
     if request.method == 'POST':
-        organization_name = request.form['organization_name']
-        contact_details = request.form['contact_details']
-        location = request.form['location']
-        website_link = request.form['website_link']
+        organization_name = request.form['organization_name'].strip()
+        contact_details = request.form['contact_details'].strip()
+        location = request.form['location'].strip()
+        website_link = request.form['website_link'].strip()
+
+        # Basic validation
+        if not organization_name:
+            flash('Organization name is required!', 'error')
+            return render_template('edit_organization_profile.html', recruiter=user)
+
+        # Validate website link if provided
+        if website_link:
+            url_pattern = r'^(https?://)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$'
+            if not re.match(url_pattern, website_link):
+                flash('Invalid website link format!', 'error')
+                return render_template('edit_organization_profile.html', recruiter=user)
+
         db.users.update_one(
             {"user_id": user_id},
             {"$set": {
                 "organization_name": organization_name,
-                "contact_details": contact_details,
-                "location": location,
-                "website_link": website_link
+                "contact_details": contact_details or None,
+                "location": location or None,
+                "website_link": website_link or None
             }}
         )
         flash('Organization profile updated successfully!', 'success')
         return redirect(url_for('recruiter_dashboard'))
 
-    return render_template('edit_organization_profile.html', user=user)
+    return render_template('edit_organization_profile.html', recruiter=user)
 
 @app.route('/results')
 def results():
