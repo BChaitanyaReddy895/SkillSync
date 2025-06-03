@@ -60,9 +60,16 @@ def fetch_data():
     internships = list(db.internship_info.find())
     internship_df = pd.DataFrame(internships)
 
-    # Debug: Check DataFrames
+    # Debug: Check DataFrames and their columns
     print("resume_df:", resume_df)
+    print("resume_df columns:", resume_df.columns.tolist())
     print("internship_df:", internship_df)
+    print("internship_df columns:", internship_df.columns.tolist())
+
+    # Ensure 'id' column exists in internship_df
+    if 'id' not in internship_df.columns:
+        print("Warning: 'id' column missing in internship_df. Setting default values.")
+        internship_df['id'] = 0  # Default value; adjust as needed
 
     # Preprocessing
     resume_df.fillna('', inplace=True)
@@ -253,20 +260,23 @@ def intern_dashboard():
             user_vector[skill_to_index[skill]] = 1
 
     internships = []
-    for idx, internship in internship_df.iterrows():
-        similarity = jaccard_similarity(user_vector, internship['Required_Skill_vector'])
-        if similarity > 0:
-            internships.append({
-                'id': internship['id'],
-                'role': internship['role'],
-                'company_name': internship['company_name'],
-                'description': internship['description_of_internship'],
-                'duration': internship['duration'],
-                'type_of_internship': internship['type_of_internship'],
-                'skills_required': internship['skills_required'],
-                'location': internship['location'],
-                'similarity_score': round(similarity * 100, 2)  # Convert to percentage
-            })
+    if internship_df.empty:
+        print("No internships available in internship_df.")
+    else:
+        for idx, internship in internship_df.iterrows():
+            similarity = jaccard_similarity(user_vector, internship['Required_Skill_vector'])
+            if similarity > 0:
+                internships.append({
+                    'id': internship.get('id', 0),  # Use .get() to provide a default value if 'id' is missing
+                    'role': internship.get('role', 'N/A'),
+                    'company_name': internship.get('company_name', 'N/A'),
+                    'description': internship.get('description_of_internship', 'N/A'),
+                    'duration': internship.get('duration', 'N/A'),
+                    'type_of_internship': internship.get('type_of_internship', 'N/A'),
+                    'skills_required': internship.get('skills_required', 'N/A'),
+                    'location': internship.get('location', 'N/A'),
+                    'similarity_score': round(similarity * 100, 2)
+                })
 
     internships = sorted(internships, key=lambda x: x['similarity_score'], reverse=True)
     login_success = request.args.get('login_success', 'false') == 'true'
@@ -403,20 +413,21 @@ def match():
             user_vector[skill_to_index[skill]] = 1
 
     matched_internships = []
-    for idx, internship in internship_df.iterrows():
-        similarity = jaccard_similarity(user_vector, internship['Required_Skill_vector'])
-        if similarity > 0:
-            matched_internships.append({
-                'id': internship['id'],
-                'role': internship['role'],
-                'company_name': internship['company_name'],
-                'description': internship['description_of_internship'],
-                'duration': internship['duration'],
-                'type_of_internship': internship['type_of_internship'],
-                'skills_required': internship['skills_required'],
-                'location': internship['location'],
-                'similarity_score': round(similarity * 100, 2)  # Convert to percentage
-            })
+    if not internship_df.empty:
+        for idx, internship in internship_df.iterrows():
+            similarity = jaccard_similarity(user_vector, internship['Required_Skill_vector'])
+            if similarity > 0:
+                matched_internships.append({
+                    'id': internship.get('id', 0),
+                    'role': internship.get('role', 'N/A'),
+                    'company_name': internship.get('company_name', 'N/A'),
+                    'description': internship.get('description_of_internship', 'N/A'),
+                    'duration': internship.get('duration', 'N/A'),
+                    'type_of_internship': internship.get('type_of_internship', 'N/A'),
+                    'skills_required': internship.get('skills_required', 'N/A'),
+                    'location': internship.get('location', 'N/A'),
+                    'similarity_score': round(similarity * 100, 2)
+                })
 
     matched_internships = sorted(matched_internships, key=lambda x: x['similarity_score'], reverse=True)
     return render_template('match.html', matched_internships=matched_internships)
@@ -622,7 +633,20 @@ def top_matched_applicants(internship_id):
         flash('Please login as a recruiter!', 'danger')
         return redirect(url_for('recruiter_login'))
 
-    internship = internship_df[internship_df['id'] == internship_id].iloc[0]
+    if internship_df.empty:
+        flash('No internships available to match applicants.', 'warning')
+        return render_template('top_matched_applicants.html', applicants=[], internship_id=internship_id)
+
+    if 'id' not in internship_df.columns:
+        flash('Internship data is malformed. Please contact support.', 'danger')
+        return render_template('top_matched_applicants.html', applicants=[], internship_id=internship_id)
+
+    matching_internships = internship_df[internship_df['id'] == internship_id]
+    if matching_internships.empty:
+        flash('Internship not found.', 'danger')
+        return render_template('top_matched_applicants.html', applicants=[], internship_id=internship_id)
+
+    internship = matching_internships.iloc[0]
     internship_vector = internship['Required_Skill_vector']
 
     applicants = []
