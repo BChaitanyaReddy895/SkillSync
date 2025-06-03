@@ -29,9 +29,12 @@ app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'default_secret_key')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# Download NLTK dependencies
-nltk.download('punkt')
-nltk.download('stopwords')
+# Configure NLTK data path to a writable directory
+nltk_data_dir = "/tmp/nltk_data"
+os.makedirs(nltk_data_dir, exist_ok=True)
+nltk.download('punkt', download_dir=nltk_data_dir)
+nltk.download('stopwords', download_dir=nltk_data_dir)
+nltk.data.path.append(nltk_data_dir)
 
 # MongoDB Connection
 username = os.getenv('MONGO_USERNAME', 'root')
@@ -479,7 +482,7 @@ def match():
                     'type_of_internship': internship.get('type_of_internship', 'N/A'),
                     'skills_required': internship.get('skills_required', 'N/A'),
                     'location': internship.get('location', 'N/A'),
-                    'similarity_score': round(similarity * 100, 2)
+                    'similarity_score': round(similarity * 100, '2')
                 })
     matched_internships = sorted(matched_internships, key=lambda x: x['similarity_score'], reverse=True)
     return render_template('match.html', matched_internships=matched_internships)
