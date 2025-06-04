@@ -119,7 +119,11 @@ def jaccard_similarity(vec1, vec2):
     intersection = len(set1.intersection(set2))
     union = len(set1.union(set2))
     return intersection / union if union != 0 else 0
+# Custom Jinja filter to display type
+def get_type(value):
+    return str(type(value).__name__)
 
+app.jinja_env.filters['type'] = get_type
 # Routes
 @app.route('/')
 def index():
