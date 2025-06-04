@@ -13,7 +13,7 @@ from datetime import datetime
 import re
 
 # Configure logging to a file in a writable directory
-log_dir = "/tmp/logs"  # Use /tmp, which is writable in containerized environments
+log_dir = "/tmp/logs"
 os.makedirs(log_dir, exist_ok=True)
 logging.basicConfig(
     filename=os.path.join(log_dir, "app.log"),
@@ -71,10 +71,12 @@ def fetch_data():
         # Fetch resumes
         resumes = list(db.resume_info.find())
         resume_df = pd.DataFrame(resumes)
+        logging.info(f"Fetched {len(resumes)} resumes from MongoDB")
 
         # Fetch internships
         internships = list(db.internship_info.find())
         internship_df = pd.DataFrame(internships)
+        logging.info(f"Fetched {len(internships)} internships from MongoDB")
 
         # Preprocessing
         resume_df.fillna('', inplace=True)
@@ -86,6 +88,7 @@ def fetch_data():
         resume_skills = resume_df['processed_Skills'].explode().dropna().tolist()
         internship_skills = internship_df['processed_Required_Skills'].explode().dropna().tolist()
         all_skills = resume_skills + internship_skills
+        logging.info(f"Total unique skills: {len(set(all_skills))}")
 
         skill_to_index = {skill: idx for idx, skill in enumerate(set(all_skills)) if all_skills}
 
@@ -240,13 +243,14 @@ def intern_dashboard():
         return redirect(url_for('create_resume'))
     applications = list(db.applications.find({"user_id": user_id}))
     applied_internship_ids = [app['internship_id'] for app in applications]
+    logging.info(f"User {user_id} has applied to internships: {applied_internship_ids}")
     user_skills = preprocess_skills(resume['skills'])
     user_vector = [0] * len(skill_to_index)
     for skill in user_skills:
         if skill in skill_to_index:
             user_vector[skill_to_index[skill]] = 1
     internships = []
-    if not internship_df.empty:
+    if not internship_df.empty and 'Required_Skill_vector' in internship_df.columns:
         for idx, internship in internship_df.iterrows():
             similarity = jaccard_similarity(user_vector, internship['Required_Skill_vector'])
             if similarity > 0:
@@ -261,6 +265,8 @@ def intern_dashboard():
                     'location': internship.get('location', 'N/A'),
                     'similarity_score': round(similarity * 100, 2)
                 })
+    else:
+        logging.warning("internship_df is empty or missing Required_Skill_vector column")
     internships = sorted(internships, key=lambda x: x['similarity_score'], reverse=True)
     login_success = request.args.get('login_success', 'false') == 'true'
     return render_template('intern_dashboard.html', internships=internships, applied_internship_ids=applied_internship_ids, login_success=login_success)
@@ -459,33 +465,52 @@ def match():
         flash('Please login as an intern!', 'danger')
         return redirect(url_for('intern_login'))
     user_id = int(session['user_id'])
-    resume = db.resume_info.find_one({"user_id": user_id})
-    if not resume:
-        flash('Please create your resume first!', 'warning')
-        return redirect(url_for('create_resume'))
-    user_skills = preprocess_skills(resume['skills'])
-    user_vector = [0] * len(skill_to_index)
-    for skill in user_skills:
-        if skill in skill_to_index:
-            user_vector[skill_to_index[skill]] = 1
-    matched_internships = []
-    if not internship_df.empty:
-        for idx, internship in internship_df.iterrows():
-            similarity = jaccard_similarity(user_vector, internship['Required_Skill_vector'])
-            if similarity > 0:
-                matched_internships.append({
-                    'id': internship.get('id', 0),
-                    'role': internship.get('role', 'N/A'),
-                    'company_name': internship.get('company_name', 'N/A'),
-                    'description': internship.get('description_of_internship', 'N/A'),
-                    'duration': internship.get('duration', 'N/A'),
-                    'type_of_internship': internship.get('type_of_internship', 'N/A'),
-                    'skills_required': internship.get('skills_required', 'N/A'),
-                    'location': internship.get('location', 'N/A'),
-                    'similarity_score': round(similarity * 100, '2')
-                })
-    matched_internships = sorted(matched_internships, key=lambda x: x['similarity_score'], reverse=True)
-    return render_template('match.html', matched_internships=matched_internships)
+    try:
+        resume = db.resume_info.find_one({"user_id": user_id})
+        if not resume:
+            flash('Please create your resume first!', 'warning')
+            return redirect(url_for('create_resume'))
+        if 'skills' not in resume or not resume['skills']:
+            flash('Please add skills to your resume to match internships!', 'warning')
+            return redirect(url_for('edit_resume'))
+        logging.info(f"Matching internships for user {user_id}, skills: {resume['skills']}")
+        user_skills = preprocess_skills(resume['skills'])
+        user_vector = [0] * len(skill_to_index)
+        for skill in user_skills:
+            if skill in skill_to_index:
+                user_vector[skill_to_index[skill]] = 1
+        logging.info(f"User skills vector length: {len(user_vector)}, skill_to_index length: {len(skill_to_index)}")
+        matched_internships = []
+        if not internship_df.empty and 'Required_Skill_vector' in internship_df.columns:
+            for idx, internship in internship_df.iterrows():
+                required_vector = internship['Required_Skill_vector']
+                if len(user_vector) != len(required_vector):
+                    logging.warning(f"Vector length mismatch for internship {internship.get('id', 'unknown')}: user_vector={len(user_vector)}, required_vector={len(required_vector)}")
+                    continue
+                similarity = jaccard_similarity(user_vector, required_vector)
+                if similarity > 0:
+                    matched_internships.append({
+                        'id': internship.get('id', 0),
+                        'role': internship.get('role', 'N/A'),
+                        'company_name': internship.get('company_name', 'N/A'),
+                        'description': internship.get('description_of_internship', 'N/A'),
+                        'duration': internship.get('duration', 'N/A'),
+                        'type_of_internship': internship.get('type_of_internship', 'N/A'),
+                        'skills_required': internship.get('skills_required', 'N/A'),
+                        'location': internship.get('location', 'N/A'),
+                        'similarity_score': round(similarity * 100, 2)
+                    })
+        else:
+            logging.warning("internship_df is empty or missing Required_Skill_vector column")
+            flash('No internships available to match at this time.', 'info')
+            return render_template('match.html', matched_internships=[])
+        logging.info(f"Found {len(matched_internships)} matched internships for user {user_id}")
+        matched_internships = sorted(matched_internships, key=lambda x: x['similarity_score'], reverse=True)
+        return render_template('match.html', matched_internships=matched_internships)
+    except Exception as e:
+        logging.error(f"Error in /match route for user {user_id}: {str(e)}")
+        flash('An error occurred while matching internships. Please try again later.', 'danger')
+        return redirect(url_for('intern_dashboard'))
 
 @app.route('/top_matched_applicants/<int:internship_id>')
 def top_matched_applicants(internship_id):
@@ -532,18 +557,29 @@ def apply_internship(internship_id):
         flash('Please login as an intern!', 'danger')
         return redirect(url_for('intern_login'))
     user_id = int(session['user_id'])
-    existing_application = db.applications.find_one({"user_id": user_id, "internship_id": internship_id})
-    if existing_application:
-        flash('You have already applied to this internship!', 'warning')
+    try:
+        # Verify internship exists
+        internship = db.internship_info.find_one({"id": internship_id})
+        if not internship:
+            flash('Internship not found.', 'danger')
+            return redirect(url_for('intern_dashboard'))
+        existing_application = db.applications.find_one({"user_id": user_id, "internship_id": internship_id})
+        if existing_application:
+            flash('You have already applied to this internship!', 'warning')
+            return redirect(url_for('intern_dashboard'))
+        application = {
+            "user_id": user_id,
+            "internship_id": internship_id,
+            "applied_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }
+        result = db.applications.insert_one(application)
+        logging.info(f"User {user_id} applied to internship {internship_id}, application ID: {result.inserted_id}")
+        flash('Applied successfully!', 'success')
         return redirect(url_for('intern_dashboard'))
-    application = {
-        "user_id": user_id,
-        "internship_id": internship_id,
-        "applied_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    }
-    db.applications.insert_one(application)
-    flash('Applied successfully!', 'success')
-    return redirect(url_for('intern_dashboard'))
+    except Exception as e:
+        logging.error(f"Error applying to internship {internship_id} for user {user_id}: {str(e)}")
+        flash('An error occurred while applying. Please try again.', 'danger')
+        return redirect(url_for('intern_dashboard'))
 
 @app.route('/applied_internships')
 def applied_internships():
@@ -551,10 +587,18 @@ def applied_internships():
         flash('Please login as an intern!', 'danger')
         return redirect(url_for('intern_login'))
     user_id = int(session['user_id'])
-    applications = list(db.applications.find({"user_id": user_id}))
-    internship_ids = [app['internship_id'] for app in applications]
-    internships = list(db.internship_info.find({"id": {"$in": internship_ids}}))
-    return render_template('applied_internships.html', internships=internships)
+    try:
+        applications = list(db.applications.find({"user_id": user_id}))
+        logging.info(f"User {user_id} has {len(applications)} applications")
+        internship_ids = [app['internship_id'] for app in applications]
+        logging.info(f"Internship IDs applied by user {user_id}: {internship_ids}")
+        internships = list(db.internship_info.find({"id": {"$in": internship_ids}}))
+        logging.info(f"Found {len(internships)} internships matching applied IDs")
+        return render_template('applied_internships.html', internships=internships)
+    except Exception as e:
+        logging.error(f"Error in /applied_internships for user {user_id}: {str(e)}")
+        flash('An error occurred while fetching applied internships. Please try again.', 'danger')
+        return redirect(url_for('intern_dashboard'))
 
 @app.route('/applied_applicants')
 def applied_applicants():
