@@ -36,11 +36,78 @@ nltk.download('stopwords', download_dir=nltk_data_dir)
 nltk.data.path.append(nltk_data_dir)
 
 # SQLite Connection
-DB_PATH = 'database.db'
+DB_PATH = '/tmp/database.db'
+
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+def initialize_database():
+    schema = '''
+    CREATE TABLE IF NOT EXISTS users (
+        user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL,
+        role TEXT NOT NULL,
+        organization_name TEXT,
+        contact_details TEXT,
+        location TEXT,
+        website_link TEXT,
+        skills TEXT
+    );
+    CREATE TABLE IF NOT EXISTS resume_info (
+        user_id INTEGER PRIMARY KEY,
+        name_of_applicant TEXT,
+        email TEXT,
+        phone_number TEXT,
+        skills TEXT,
+        experience TEXT,
+        education TEXT,
+        certifications TEXT,
+        achievements TEXT,
+        resume_path TEXT,
+        downloaded INTEGER DEFAULT 0,
+        FOREIGN KEY (user_id) REFERENCES users(user_id)
+    );
+    CREATE TABLE IF NOT EXISTS internship_info (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        role TEXT NOT NULL,
+        description_of_internship TEXT,
+        start_date TEXT,
+        end_date TEXT,
+        duration TEXT,
+        type_of_internship TEXT,
+        skills_required TEXT,
+        location TEXT,
+        years_of_experience INTEGER,
+        phone_number TEXT,
+        company_name TEXT,
+        company_mail TEXT,
+        user_id INTEGER,
+        posted_date TEXT,
+        expected_salary TEXT,
+        FOREIGN KEY (user_id) REFERENCES users(user_id)
+    );
+    CREATE TABLE IF NOT EXISTS applications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        internship_id INTEGER,
+        applied_at TEXT,
+        FOREIGN KEY (user_id) REFERENCES users(user_id),
+        FOREIGN KEY (internship_id) REFERENCES internship_info(id)
+    );
+    '''
+    import sqlite3
+    conn = sqlite3.connect(DB_PATH)
+    conn.executescript(schema)
+    conn.commit()
+    conn.close()
+
+# Initialize database if not exists
+if not os.path.exists(DB_PATH):
+    initialize_database()
 
 # Global variables for matching
 resume_df = pd.DataFrame()
