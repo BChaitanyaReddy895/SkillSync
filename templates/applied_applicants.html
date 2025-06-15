@@ -100,7 +100,7 @@
             border-radius: 5px;
         }
 
-        .flash-messages .error {
+        .flash-messages .danger {
             color: red;
             background-color: #ffe6e6;
             padding: 10px;
@@ -115,8 +115,7 @@
             text-decoration: none;
             border-radius: 5px;
             font-size: 16px;
-            margin-top: 20px;
-            text-align: center;
+            margin-top: 10px;
             transition: background-color 0.3s ease;
         }
 
@@ -134,7 +133,7 @@
         </nav>
     </header>
     <div class="container">
-        <h1>Applied Applicants</h1>
+        <h1>Applied Applicants{% if internship %} for {{ internship.role }}{% endif %}</h1>
         
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -149,14 +148,26 @@
         {% if applicants %}
             {% for applicant in applicants %}
                 <div class="applicant">
-                    <h2>{{ applicant.applicant_name }}</h2>
-                    <p><strong>Email:</strong> {{ applicant.applicant_email }}</p>
-                    <p><strong>Internship Title:</strong> {{ applicant.internship_title }}</p>
-                    <p class="applied-date"><strong>Applied On:</strong> {{ applicant.applied_at.strftime('%d %B %Y, %I:%M %p') }}</p>
+                    <h2>{{ applicant.name }}</h2>
+                    <p><strong>Email:</strong> {{ applicant.email }}</p>
+                    <p><strong>Internship Title:</strong> {{ applicant.internship_title or internship.role }}</p>
+                    {% if applicant.skills %}
+                        <p><strong>Skills:</strong> {{ applicant.skills }}</p>
+                    {% endif %}
+                    {% if applicant.experience %}
+                        <p><strong>Experience:</strong> {{ applicant.experience }}</p>
+                    {% endif %}
+                    {% if applicant.education %}
+                        <p><strong>Education:</strong> {{ applicant.education }}</p>
+                    {% endif %}
+                    <p class="applied-date"><strong>Applied On:</strong> {{ applicant.applied_at }}</p>
+                    {% if applicant.resume_path %}
+                        <a href="{{ url_for('download_resume', resume_path=applicant.resume_path) }}" class="button">Download Resume</a>
+                    {% endif %}
                 </div>
             {% endfor %}
         {% else %}
-            <p>No applicants have applied for your internships yet.</p>
+            <p>No applicants have applied for {% if internship %}{{ internship.role }}{% else %}your internships{% endif %} yet.</p>
         {% endif %}
         
         <a href="{{ url_for('recruiter_dashboard') }}" class="button">Back to Dashboard</a>
