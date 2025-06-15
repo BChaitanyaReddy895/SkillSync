@@ -118,9 +118,19 @@ skill_to_index = {}
 def preprocess_skills(skills):
     if not isinstance(skills, str) or skills.strip() == '':
         return []
-    tokens = word_tokenize(skills.lower())
-    tokens = [word for word in tokens if word not in stopwords.words('english') and word not in string.punctuation]
-    return tokens
+    # Replace common separators with comma, then split
+    skills_clean = skills.replace(';', ',').replace('|', ',').replace('/', ',')
+    # Split by comma, strip whitespace, lowercase, remove empty
+    tokens = [s.strip().lower() for s in skills_clean.split(',') if s.strip()]
+    # Remove stopwords and punctuation from each token
+    stop_words = set(stopwords.words('english'))
+    processed = []
+    for token in tokens:
+        # Remove punctuation from token
+        token = ''.join([c for c in token if c not in string.punctuation])
+        if token and token not in stop_words:
+            processed.append(token)
+    return processed
 
 # Fetch data from SQLite and initialize dataframes
 def fetch_data():
