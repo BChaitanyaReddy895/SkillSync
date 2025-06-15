@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Applied Internships</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 50px auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #00796b;
+        }
+
+        .internship {
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+
+        .internship h2 {
+            margin: 0;
+            color: #00796b;
+        }
+
+        .internship p {
+            margin: 5px 0;
+        }
+
+        .applied-date {
+            font-size: 14px;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Applied Internships</h1>
+        {% if applied_internships %}
+            {% for internship in applied_internships %}
+                <div class="internship">
+                    <h2>{{ internship.internship_title }} at {{ internship.company }}</h2>
+                    <p><strong>Type:</strong> {{ internship.type_of_internship }}</p>
+                    <p><strong>Location:</strong> {{ internship.location }}</p>
+                    <p><strong>Description:</strong> {{ internship.description_of_internship }}</p>
+                    <p class="applied-date"><strong>Applied On:</strong> {{ internship.applied_at.strftime('%d %B %Y, %I:%M %p') }}</p>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>You have not applied for any internships yet.</p>
+        {% endif %}
+    </div>
+</body>
+</html>
