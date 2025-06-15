@@ -29,7 +29,7 @@ app.secret_key = os.getenv('FLASK_SECRET_KEY', 'default_secret_key')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # Configure NLTK data path to a writable directory
-nltk_data_dir = "./nltk_data"
+nltk_data_dir = "/tmp/nltk_data"
 os.makedirs(nltk_data_dir, exist_ok=True)
 nltk.download('punkt', download_dir=nltk_data_dir)
 nltk.download('stopwords', download_dir=nltk_data_dir)
