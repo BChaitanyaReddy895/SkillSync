@@ -11,6 +11,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import re
 import shutil
+import secrets
 
 # Configure logging to a file in a writable directory
 log_dir = "/tmp/logs"
@@ -26,7 +27,9 @@ logging.getLogger('werkzeug').setLevel(logging.WARNING)
 UPLOAD_FOLDER = 'static/uploads'
 ALLOWED_EXTENSIONS = {'pdf'}
 app = Flask(__name__)
-app.secret_key = os.getenv('FLASK_SECRET_KEY', 'default_secret_key')
+# Secure secret key configuration
+app.secret_key = os.getenv('FLASK_SECRET_KEY', secrets.token_hex(32))
+logging.info(f"Flask secret key configured: {len(app.secret_key)} bytes")
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # Configure NLTK data path to a writable directory
@@ -116,25 +119,40 @@ def initialize_database():
 
 def insert_test_data():
     conn = get_db_connection()
-    # Insert test intern
-    conn.execute('INSERT OR IGNORE INTO users (user_id, name, email, password, role, skills) VALUES (?, ?, ?, ?, ?, ?)',
-                 (1, 'Test Intern', 'intern@example.com', generate_password_hash('password'), 'intern', 'python, java, sql'))
-    conn.execute('INSERT OR IGNORE INTO resume_info (user_id, name_of_applicant, email, skills) VALUES (?, ?, ?, ?)',
-                 (1, 'Test Intern', 'intern@example.com', 'python, java, sql'))
-    # Insert test recruiter
-    conn.execute('INSERT OR IGNORE INTO users (user_id, name, email, password, role, organization_name) VALUES (?, ?, ?, ?, ?, ?)',
-                 (2, 'Test Recruiter', 'recruiter@example.com', generate_password_hash('password'), 'recruiter', 'Test Corp'))
-    # Insert test internship
-    conn.execute('INSERT OR IGNORE INTO internship_info (id, role, description_of_internship, start_date, end_date, duration, type_of_internship, skills_required, location, years_of_experience, phone_number, company_name, company_mail, user_id, posted_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                 (1, 'Software Intern', 'Develop software', '2025-07-01', '2025-12-31', '6 months', 'Full-time', 'python, java', 'Remote', 0, '+1-800-555-1234', 'Test Corp', 'recruiter@example.com', 2, '2025-06-15'))
-    conn.commit()
+    # Check if test data already exists
+    existing_intern = conn.execute('SELECT * FROM users WHERE email = ?', ('intern@example.com',)).fetchone()
+    if not existing_intern:
+        # Insert test intern
+        conn.execute('INSERT OR IGNORE INTO users (user_id, name, email, password, role, skills) VALUES (?, ?, ?, ?, ?, ?)',
+                     (1, 'Test Intern', 'intern@example.com', generate_password_hash('password'), 'intern', 'python, java, sql'))
+        conn.execute('INSERT OR IGNORE INTO resume_info (user_id, name_of_applicant, email, skills) VALUES (?, ?, ?, ?)',
+                     (1, 'Test Intern', 'intern@example.com', 'python, java, sql'))
+        # Insert test recruiter
+        conn.execute('INSERT OR IGNORE INTO users (user_id, name, email, password, role, organization_name) VALUES (?, ?, ?, ?, ?, ?)',
+                     (2, 'Test Recruiter', 'recruiter@example.com', generate_password_hash('password'), 'recruiter', 'Test Corp'))
+        # Insert test internship
+        conn.execute('INSERT OR IGNORE INTO internship_info (id, role, description_of_internship, start_date, end_date, duration, type_of_internship, skills_required, location, years_of_experience, phone_number, company_name, company_mail, user_id, posted_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                     (1, 'Software Intern', 'Develop software', '2025-07-01', '2025-12-31', '6 months', 'Full-time', 'python, java', 'Remote', 0, '+1-800-555-1234', 'Test Corp', 'recruiter@example.com', 2, '2025-06-15'))
+        conn.commit()
+        logging.info("Inserted test data")
+    else:
+        logging.info("Test data already exists, skipping insertion")
     conn.close()
-    logging.info("Inserted test data")
 
-# Initialize database if not exists
+# Initialize database and ensure test data
 if not os.path.exists(DB_PATH):
     initialize_database()
     insert_test_data()
+else:
+    # Verify test data exists
+    conn = get_db_connection()
+    intern_count = conn.execute('SELECT COUNT(*) FROM users WHERE email = ?', ('intern@example.com',)).fetchone()[0]
+    internship_count = conn.execute('SELECT COUNT(*) FROM internship_info WHERE id = ?', (1,)).fetchone()[0]
+    conn.close()
+    if intern_count == 0 or internship_count == 0:
+        logging.warning("Test data missing, reinitializing")
+        initialize_database()
+        insert_test_data()
 
 # Global variables for matching
 resume_df = pd.DataFrame()
@@ -230,6 +248,7 @@ def recruiter_login():
             session['user_id'] = user['user_id']
             session['user_name'] = user['name']
             session['role'] = 'recruiter'
+            logging.info(f"Recruiter login successful: user_id={user['user_id']}")
             flash('Login successful!', 'success')
             return redirect(url_for('recruiter_dashboard', login_success='true'))
         else:
@@ -248,6 +267,7 @@ def intern_login():
             session['user_id'] = user['user_id']
             session['user_name'] = user['name']
             session['role'] = 'intern'
+            logging.info(f"Intern login successful: user_id={user['user_id']}")
             flash('Login successful!', 'success')
             return redirect(url_for('intern_dashboard', login_success='true'))
         else:
@@ -326,6 +346,7 @@ def intern_dashboard():
     logging.info(f"Session data: {session}")
     if 'user_id' not in session or session['role'] != 'intern':
         flash('Please login as an intern.', 'danger')
+        logging.info("Redirecting to intern_login due to missing session or role")
         return redirect(url_for('intern_login'))
     user_id = int(session['user_id'])
     try:
