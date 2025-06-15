@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intern Login - SkillSync</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+        }
+
+        header {
+            background-color: #00796b;
+            padding: 10px 20px;
+            text-align: center;
+        }
+
+        header img {
+            height: 50px;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 50px auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #00796b;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        input {
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 10px;
+            background-color: #00796b;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            position: relative;
+        }
+
+        button:hover {
+            background-color: #005a4f;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        button .loading {
+            display: none;
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            border: 3px solid white;
+            border-top: 3px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: translateY(-50%) rotate(0deg); }
+            100% { transform: translateY(-50%) rotate(360deg); }
+        }
+
+        .signup-link {
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .signup-link a {
+            color: #00796b;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .signup-link a:hover {
+            text-decoration: underline;
+        }
+
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        {% if url_for('static', filename='logo.png') %}
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="SkillSync Logo">
+        {% else %}
+            <h1 style="color: white;">SkillSync</h1>
+        {% endif %}
+        <div style="text-align: center; margin-top: 10px;">
+            <a href="{{ url_for('index') }}" style="color: white; text-decoration: none; font-weight: bold;">Back to Home</a>
+        </div>
+    </header>
+    <div class="container">
+        <h1>Intern Login</h1>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div>
+                {% for category, message in messages %}
+                    <p class="{{ category }}">{{ message }}</p>
+                {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        <form id="login-form" action="{{ url_for('intern_login') }}" method="POST">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" placeholder="Enter your email" value="{{ request.form.get('email', '') }}" autocomplete="email" required>
+
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" placeholder="Enter your password" autocomplete="current-password" required>
+
+            <button type="submit" id="login-button">Login <span class="loading"></span></button>
+        </form>
+        <div class="signup-link">
+            Don't have an account? <a href="{{ url_for('intern_signup') }}">Sign up here</a>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('login-form').addEventListener('submit', function(event) {
+            const button = document.getElementById('login-button');
+            button.disabled = true;
+            button.querySelector('.loading').style.display = 'inline-block';
+            console.log("Form submission initiated for intern login");
+        });
+
+        // Show pop-up for signup success
+        {% if request.args.get('signup_success', 'false') == 'true' %}
+            alert('Signup successful! Please login to continue.');
+        {% endif %}
+    </script>
+</body>
+</html>

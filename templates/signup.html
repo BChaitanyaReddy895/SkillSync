@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - SkillSync</title>
+    <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(120deg, #e0f7fa 0%, #f4f4f9 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 420px;
+            margin: 40px auto;
+            background: #fff;
+            padding: 32px 24px 24px 24px;
+            border-radius: 16px;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.10);
+        }
+        .logo {
+            display: block;
+            margin: 0 auto 16px auto;
+            height: 56px;
+        }
+        h1 {
+            text-align: center;
+            color: #00796b;
+            margin-bottom: 24px;
+            font-size: 2rem;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        label {
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        input, select {
+            padding: 10px;
+            font-size: 1rem;
+            border: 1px solid #bdbdbd;
+            border-radius: 6px;
+            width: 100%;
+            box-sizing: border-box;
+            background: #fafafa;
+            transition: border-color 0.2s;
+        }
+        input:focus, select:focus {
+            border-color: #00796b;
+            outline: none;
+        }
+        .form-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .form-group > div {
+            flex: 1 1 45%;
+            min-width: 45%;
+        }
+        button[type="submit"] {
+            padding: 12px;
+            background: linear-gradient(90deg, #00796b 60%, #26a69a 100%);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: background 0.2s;
+        }
+        button[type="submit"]:hover {
+            background: linear-gradient(90deg, #005a4f 60%, #00796b 100%);
+        }
+        .login-link {
+            text-align: center;
+            margin-top: 18px;
+            font-size: 1rem;
+        }
+        .login-link a {
+            color: #00796b;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .login-link a:hover {
+            text-decoration: underline;
+        }
+        .flash-messages {
+            margin-bottom: 12px;
+        }
+        .flash-messages .error {
+            color: #c62828;
+            background: #ffebee;
+            border-left: 4px solid #c62828;
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin-bottom: 6px;
+        }
+        .flash-messages .success {
+            color: #2e7d32;
+            background: #e8f5e9;
+            border-left: 4px solid #2e7d32;
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin-bottom: 6px;
+        }
+        .recruiter-fields {
+            display: none;
+            margin-top: 8px;
+            background: #f1f8e9;
+            border-radius: 8px;
+            padding: 12px 8px 4px 8px;
+        }
+        @media (max-width: 600px) {
+            .container {
+                max-width: 98vw;
+                padding: 16px 4vw;
+            }
+            .form-group {
+                flex-direction: column;
+                gap: 0;
+            }
+            .form-group > div {
+                min-width: 100%;
+            }
+        }
+    </style>
+    <script>
+        function toggleFields() {
+            const role = document.getElementById('role').value;
+            const recruiterFields = document.getElementById('recruiter-fields');
+            if (role === 'recruiter') {
+                recruiterFields.style.display = 'block';
+                // Make recruiter fields required
+                document.getElementById('organization_name').required = true;
+                document.getElementById('contact_details').required = true;
+                document.getElementById('location').required = true;
+                document.getElementById('website_link').required = true;
+            } else {
+                recruiterFields.style.display = 'none';
+                document.getElementById('organization_name').required = false;
+                document.getElementById('contact_details').required = false;
+                document.getElementById('location').required = false;
+                document.getElementById('website_link').required = false;
+            }
+        }
+        window.onload = function() {
+            toggleFields();
+        };
+    </script>
+</head>
+<body>
+    <div class="container">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="SkillSync Logo" class="logo">
+        <h1>Sign Up</h1>
+        <div class="flash-messages">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        </div>
+        <form action="/signup" method="POST" autocomplete="off">
+            <label for="name">Name</label>
+            <input type="text" id="name" name="name" required>
+
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" required>
+
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required minlength="6">
+
+            <label for="confirm_password">Confirm Password</label>
+            <input type="password" id="confirm_password" name="confirm_password" required minlength="6">
+
+            <label for="role">Role</label>
+            <select id="role" name="role" onchange="toggleFields()" required>
+                <option value="intern">Intern</option>
+                <option value="recruiter">Recruiter</option>
+            </select>
+
+            <div id="recruiter-fields" class="recruiter-fields">
+                <div class="form-group">
+                    <div>
+                        <label for="organization_name">Organization/Company Name</label>
+                        <input type="text" id="organization_name" name="organization_name">
+                    </div>
+                    <div>
+                        <label for="contact_details">Contact Details</label>
+                        <input type="text" id="contact_details" name="contact_details">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div>
+                        <label for="location">Location</label>
+                        <input type="text" id="location" name="location">
+                    </div>
+                    <div>
+                        <label for="website_link">Website Link</label>
+                        <input type="url" id="website_link" name="website_link">
+                    </div>
+                </div>
+            </div>
+            <button type="submit">Sign Up</button>
+        </form>
+        <div class="login-link">
+            Already have an account? <a href="/login">Login here</a>
+        </div>
+    </div>
+</body>
+</html>

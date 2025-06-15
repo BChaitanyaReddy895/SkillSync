@@ -1,0 +1,8 @@
+name,email,password,role,organization_name,contact_details,location,website_link
+"B Chaitanya Reddy","bchai@gmail.com","pbkdf2:sha256:1000000$IwoXxqdu1zYIIf4P$70064a2ae7d2103e54d2957aa2d0899d547854e2e6313e5c3b648f52d83435ba","recruiter","","","",""
+"abc","abc@gmail.com","pbkdf2:sha256:1000000$5spHg9C2M6oBOLJ2$05bb400421a6b5688a9281addbcef96479a8ca79bb20ca849de1b472a616bfab","recruiter","","","",""
+"abc","def@gmail.com","pbkdf2:sha256:1000000$eMbeIagjigPKOqAC$b6cbc477d0069b53a09a893c498d5be05e50a18351dd319ebd9f40c55e7ff4f6","intern","","","",""
+"John Doe","john.doe@email.com","pbkdf2:sha256:1000000$sh6a4Yxb4DDUQ9MO$10755d88a3a30ef0d77dcdb53997a73b863c8f76f2133f6a32a359e1ae23457f","intern","","","",""
+"John Doe","john.doe@company.com","pbkdf2:sha256:1000000$uBZdoWuUL8eAnEDr$961b25cf97f37bcd33224a75fd53e3773970ba649e671c22ad1fef2a6e16832f","recruiter","TechCorp","+1-800-555-1234","San Francisco, CA","https://www.techcorp.com"
+"Jane Smith","jane.smith@gmail.com","pbkdf2:sha256:1000000$17VAt8BB2IpEntKf$37fd999fdf86dc8d002725aaed06cead50046f7667cf4d84cee78dbfa7a361d9","intern","","","",""
+"B Chaitanya Reddy","bchaitanyareddy902@gmail.com","pbkdf2:sha256:1000000$qHYm9jyDvaqpc5d6$d40a49464a6366af81b8792c95b01e84fb5b6e5c3579ab2d1c4d068e4148f915","intern","","","",""

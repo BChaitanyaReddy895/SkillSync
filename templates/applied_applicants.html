@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Applied Applicants</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+        }
+
+        header {
+            background-color: #00796b;
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        header img {
+            height: 50px;
+        }
+
+        nav {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        nav span {
+            font-size: 16px;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            font-size: 16px;
+            padding: 8px 16px;
+            border: 1px solid white;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        nav a:hover {
+            background-color: white;
+            color: #00796b;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 50px auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #00796b;
+            margin-bottom: 20px;
+        }
+
+        .applicant {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+
+        .applicant h2 {
+            margin: 0 0 10px;
+            color: #00796b;
+            font-size: 18px;
+        }
+
+        .applicant p {
+            margin: 5px 0;
+            color: #333;
+        }
+
+        .applied-date {
+            font-size: 14px;
+            color: #555;
+        }
+
+        .flash-messages {
+            margin: 10px 0;
+        }
+
+        .flash-messages .success {
+            color: green;
+            background-color: #e0f2e9;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .flash-messages .danger {
+            color: red;
+            background-color: #ffe6e6;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #00796b;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 16px;
+            margin-top: 10px;
+            transition: background-color 0.3s ease;
+        }
+
+        .button:hover {
+            background-color: #005a4f;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="SkillSync Logo">
+        <nav>
+            <span>Welcome, {{ user_name }}</span>
+            <a href="{{ url_for('logout') }}">Logout</a>
+        </nav>
+    </header>
+    <div class="container">
+        <h1>Applied Applicants{% if internship %} for {{ internship.role }}{% endif %}</h1>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <p class="{{ category }}">{{ message }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        {% if applicants %}
+            {% for applicant in applicants %}
+                <div class="applicant">
+                    <h2>{{ applicant.name }}</h2>
+                    <p><strong>Email:</strong> {{ applicant.email }}</p>
+                    <p><strong>Internship Title:</strong> {{ applicant.internship_title or internship.role }}</p>
+                    {% if applicant.skills %}
+                        <p><strong>Skills:</strong> {{ applicant.skills }}</p>
+                    {% endif %}
+                    {% if applicant.experience %}
+                        <p><strong>Experience:</strong> {{ applicant.experience }}</p>
+                    {% endif %}
+                    {% if applicant.education %}
+                        <p><strong>Education:</strong> {{ applicant.education }}</p>
+                    {% endif %}
+                    <p class="applied-date"><strong>Applied On:</strong> {{ applicant.applied_at }}</p>
+                    {% if applicant.resume_path %}
+                        <a href="{{ url_for('download_resume', resume_path=applicant.resume_path) }}" class="button">Download Resume</a>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>No applicants have applied for {% if internship %}{{ internship.role }}{% else %}your internships{% endif %} yet.</p>
+        {% endif %}
+        
+        <a href="{{ url_for('recruiter_dashboard') }}" class="button">Back to Dashboard</a>
+    </div>
+</body>
+</html>

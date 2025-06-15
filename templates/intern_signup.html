@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intern Sign Up - SkillSync</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+        }
+
+        header {
+            background-color: #00796b;
+            padding: 10px 20px;
+            text-align: center;
+        }
+
+        header img {
+            height: 50px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #00796b;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        label {
+            font-weight: bold;
+            color: #555;
+        }
+
+        input {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        input.error {
+            border-color: red;
+        }
+
+        .error-message {
+            color: red;
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        button {
+            padding: 10px;
+            background-color: #00796b;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            position: relative;
+        }
+
+        button:hover {
+            background-color: #005a4f;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        button .loading {
+            display: none;
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            border: 3px solid white;
+            border-top: 3px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: translateY(-50%) rotate(0deg); }
+            100% { transform: translateY(-50%) rotate(360deg); }
+        }
+
+        .login-link {
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .login-link a {
+            color: #00796b;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .login-link a:hover {
+            text-decoration: underline;
+        }
+
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        {% if url_for('static', filename='logo.png') %}
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="SkillSync Logo">
+        {% else %}
+            <h1 style="color: white;">SkillSync</h1>
+        {% endif %}
+        <div style="text-align: center; margin-top: 10px;">
+            <a href="{{ url_for('index') }}" style="color: white; text-decoration: none; font-weight: bold;">Back to Home</a>
+        </div>
+    </header>
+    <div class="container">
+        <h1>Intern Sign Up</h1>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div>
+                {% for category, message in messages %}
+                    <p class="{{ category }}">{{ message }}</p>
+                {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        <form id="signup-form" action="{{ url_for('intern_signup') }}" method="POST" onsubmit="return handleSubmit(event)">
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="name" value="{{ request.form.get('name', '') }}" required>
+
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" value="{{ request.form.get('email', '') }}" required>
+
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+            <span id="password-error" class="error-message">Passwords do not match.</span>
+
+            <label for="confirm_password">Confirm Password:</label>
+            <input type="password" id="confirm_password" name="confirm_password" required>
+
+            <label for="skills">Skills (comma-separated):</label>
+            <input type="text" id="skills" name="skills" value="{{ request.form.get('skills', '') }}" required>
+            <span id="skills-error" class="error-message">Skills are required.</span>
+
+            <button type="submit" id="signup-button">Sign Up <span class="loading"></span></button>
+        </form>
+        <div class="login-link">
+            Already have an account? <a href="{{ url_for('intern_login') }}">Login here</a>
+        </div>
+    </div>
+
+    <script>
+        function handleSubmit(event) {
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm_password').value;
+            const passwordError = document.getElementById('password-error');
+            const skills = document.getElementById('skills').value.trim();
+            const skillsError = document.getElementById('skills-error');
+
+            let isValid = true;
+
+            // Validate password match
+            if (password !== confirmPassword) {
+                document.getElementById('password').classList.add('error');
+                document.getElementById('confirm_password').classList.add('error');
+                passwordError.style.display = 'block';
+                isValid = false;
+            } else {
+                passwordError.style.display = 'none';
+            }
+
+            // Validate skills
+            if (!skills) {
+                document.getElementById('skills').classList.add('error');
+                skillsError.style.display = 'block';
+                isValid = false;
+            } else {
+                skillsError.style.display = 'none';
+            }
+
+            if (isValid) {
+                const button = document.getElementById('signup-button');
+                button.disabled = true;
+                button.querySelector('.loading').style.display = 'inline-block';
+                console.log("Form submission initiated for intern signup");
+            } else {
+                event.preventDefault();
+                console.log("Form validation failed");
+            }
+
+            return isValid;
+        }
+    </script>
+</body>
+</html>

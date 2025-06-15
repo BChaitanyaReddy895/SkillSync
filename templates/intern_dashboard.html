@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intern Dashboard</title>
+    <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(120deg, #e0f7fa 0%, #f4f4f9 100%);
+            min-height: 100vh;
+        }
+
+        header {
+            background-color: #00796b;
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        header img {
+            height: 50px;
+        }
+
+        nav {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        nav span {
+            font-size: 16px;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            font-size: 16px;
+            padding: 8px 16px;
+            border: 1px solid white;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        nav a:hover {
+            background-color: white;
+            color: #00796b;
+        }
+
+        .container {
+            padding: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #00796b;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 2.2rem;
+        }
+
+        .dashboard-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 24px;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 14px 28px;
+            background: linear-gradient(90deg, #00796b 60%, #26a69a 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            font-weight: 500;
+            border: none;
+            transition: background 0.2s;
+            cursor: pointer;
+        }
+
+        .button:hover {
+            background: linear-gradient(90deg, #005a4f 60%, #00796b 100%);
+        }
+
+        .flash-messages {
+            margin: 10px 0 18px 0;
+        }
+
+        .flash-messages .success {
+            color: #2e7d32;
+            background: #e8f5e9;
+            border-left: 4px solid #2e7d32;
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin-bottom: 6px;
+        }
+
+        .flash-messages .error {
+            color: #c62828;
+            background: #ffebee;
+            border-left: 4px solid #c62828;
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin-bottom: 6px;
+        }
+
+        .internship {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 18px 18px 12px 18px;
+            margin: 16px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        }
+
+        .internship h3 {
+            color: #00796b;
+            margin: 0 0 10px;
+            font-size: 1.3rem;
+        }
+
+        .internship p {
+            margin: 5px 0;
+            color: #333;
+        }
+
+        .apply-button {
+            display: inline-block;
+            padding: 10px 22px;
+            background: linear-gradient(90deg, #00796b 60%, #26a69a 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: background 0.2s;
+        }
+
+        .apply-button:hover {
+            background: linear-gradient(90deg, #005a4f 60%, #00796b 100%);
+        }
+
+        .applied-label {
+            display: inline-block;
+            padding: 10px 22px;
+            background-color: #cccccc;
+            color: #333;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 500;
+            text-align: center;
+            margin-top: 8px;
+        }
+
+        @media (max-width: 700px) {
+            .container {
+                max-width: 98vw;
+                padding: 8px 2vw;
+            }
+
+            .dashboard-actions {
+                flex-direction: column;
+                gap: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="SkillSync Logo">
+        <nav>
+            <span>Welcome, {{ user_name }}</span>
+            <a href="{{ url_for('logout') }}">Logout</a>
+        </nav>
+    </header>
+    <div class="container">
+        <h1>Intern Dashboard</h1>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        <div class="dashboard-actions">
+            <a href="{{ url_for('create_resume') }}" class="button">Create ATS-Friendly Resume</a>
+            <a href="{{ url_for('edit_resume') }}" class="button">Edit Resume</a>
+            <a href="{{ url_for('match') }}" class="button">Matched Internships</a>
+            <a href="{{ url_for('applied_internships') }}" class="button">Applied Internships</a>
+            <a href="{{ url_for('edit_profile') }}" class="button">Edit Profile</a>
+        </div>
+        <h2 style="color:#00796b;">Matched Internships</h2>
+        {% if internships %}
+            {% for internship in internships %}
+                <div class="internship">
+                    <h3>{{ internship.role }} at {{ internship.company_name }}</h3>
+                    <p><strong>Type:</strong> {{ internship.type_of_internship }}</p>
+                    <p><strong>Duration:</strong> {{ internship.duration }}</p>
+                    <p><strong>Location:</strong> {{ internship.location }}</p>
+                    <p><strong>Skills Required:</strong> {{ internship.skills_required }}</p>
+                    <p><strong>Similarity Score:</strong> {{ internship.similarity_score }}%</p>
+                    {% if internship.similarity_score > 75 %}
+                        {% if internship.id in applied_internship_ids %}
+                            <span class="applied-label">Applied</span>
+                        {% else %}
+                            <form action="{{ url_for('apply_internship', internship_id=internship.id) }}" method="POST">
+                                <button type="submit" class="apply-button">Apply</button>
+                            </form>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>No matched internships found. Create or update your resume to find matches.</p>
+        {% endif %}
+    </div>
+</body>
+</html>
