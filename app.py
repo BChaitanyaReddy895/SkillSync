@@ -35,6 +35,7 @@ os.makedirs(nltk_data_dir, exist_ok=True)
 nltk.download('punkt', download_dir=nltk_data_dir)
 nltk.download('stopwords', download_dir=nltk_data_dir)
 nltk.data.path.append(nltk_data_dir)
+logging.info(f"NLTK data directory: {nltk_data_dir}, writable: {os.access(nltk_data_dir, os.W_OK)}")
 
 # Database configuration
 SOURCE_DB = 'database.db'
@@ -43,6 +44,7 @@ DB_PATH = '/tmp/database.db'
 # Copy database.db to /tmp/database.db if needed
 if not os.path.exists(DB_PATH) and os.path.exists(SOURCE_DB):
     shutil.copyfile(SOURCE_DB, DB_PATH)
+logging.info(f"Database path: {DB_PATH}, exists: {os.path.exists(DB_PATH)}")
 
 # SQLite Connection
 def get_db_connection():
@@ -106,15 +108,33 @@ def initialize_database():
         FOREIGN KEY (internship_id) REFERENCES internship_info(id)
     );
     '''
-    import sqlite3
     conn = sqlite3.connect(DB_PATH)
     conn.executescript(schema)
     conn.commit()
     conn.close()
+    logging.info("Database schema initialized")
+
+def insert_test_data():
+    conn = get_db_connection()
+    # Insert test intern
+    conn.execute('INSERT OR IGNORE INTO users (user_id, name, email, password, role, skills) VALUES (?, ?, ?, ?, ?, ?)',
+                 (1, 'Test Intern', 'intern@example.com', generate_password_hash('password'), 'intern', 'python, java, sql'))
+    conn.execute('INSERT OR IGNORE INTO resume_info (user_id, name_of_applicant, email, skills) VALUES (?, ?, ?, ?)',
+                 (1, 'Test Intern', 'intern@example.com', 'python, java, sql'))
+    # Insert test recruiter
+    conn.execute('INSERT OR IGNORE INTO users (user_id, name, email, password, role, organization_name) VALUES (?, ?, ?, ?, ?, ?)',
+                 (2, 'Test Recruiter', 'recruiter@example.com', generate_password_hash('password'), 'recruiter', 'Test Corp'))
+    # Insert test internship
+    conn.execute('INSERT OR IGNORE INTO internship_info (id, role, description_of_internship, start_date, end_date, duration, type_of_internship, skills_required, location, years_of_experience, phone_number, company_name, company_mail, user_id, posted_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                 (1, 'Software Intern', 'Develop software', '2025-07-01', '2025-12-31', '6 months', 'Full-time', 'python, java', 'Remote', 0, '+1-800-555-1234', 'Test Corp', 'recruiter@example.com', 2, '2025-06-15'))
+    conn.commit()
+    conn.close()
+    logging.info("Inserted test data")
 
 # Initialize database if not exists
 if not os.path.exists(DB_PATH):
     initialize_database()
+    insert_test_data()
 
 # Global variables for matching
 resume_df = pd.DataFrame()
@@ -123,20 +143,19 @@ skill_to_index = {}
 
 # Preprocessing function for skills
 def preprocess_skills(skills):
+    logging.info(f"Raw skills input: {skills}")
     if not isinstance(skills, str) or skills.strip() == '':
+        logging.warning(f"Skills empty or invalid: {skills}")
         return []
-    # Replace common separators with comma, then split
     skills_clean = skills.replace(';', ',').replace('|', ',').replace('/', ',')
-    # Split by comma, strip whitespace, lowercase, remove empty
     tokens = [s.strip().lower() for s in skills_clean.split(',') if s.strip()]
-    # Remove stopwords and punctuation from each token
     stop_words = set(stopwords.words('english'))
     processed = []
     for token in tokens:
-        # Remove punctuation from token
         token = ''.join([c for c in token if c not in string.punctuation])
         if token and token not in stop_words:
             processed.append(token)
+    logging.info(f"Processed skills: {processed}")
     return processed
 
 # Fetch data from SQLite and initialize dataframes
@@ -146,23 +165,20 @@ def fetch_data():
         conn = get_db_connection()
         resumes = conn.execute('SELECT * FROM resume_info').fetchall()
         internships = conn.execute('SELECT * FROM internship_info').fetchall()
+        logging.info(f"Raw resumes: {len(resumes)}, Raw internships: {len(internships)}")
         resume_df = pd.DataFrame([dict(row) for row in resumes])
         internship_df = pd.DataFrame([dict(row) for row in internships])
+        logging.info(f"resume_df shape: {resume_df.shape}, internship_df shape: {internship_df.shape}")
         conn.close()
-        logging.info(f"Fetched {len(resume_df)} resumes from SQLite")
-        logging.info(f"Fetched {len(internship_df)} internships from SQLite")
-        # Preprocessing
         resume_df.fillna('', inplace=True)
         internship_df.fillna('', inplace=True)
         resume_df['processed_Skills'] = resume_df['skills'].apply(preprocess_skills) if not resume_df.empty else []
         internship_df['processed_Required_Skills'] = internship_df['skills_required'].apply(preprocess_skills) if not internship_df.empty else []
-        # Create a set of unique skills, handling empty cases
         resume_skills = resume_df['processed_Skills'].explode().dropna().tolist() if not resume_df.empty else []
         internship_skills = internship_df['processed_Required_Skills'].explode().dropna().tolist() if not internship_df.empty else []
         all_skills = resume_skills + internship_skills
         logging.info(f"Total unique skills: {len(set(all_skills))}")
         skill_to_index = {skill: idx for idx, skill in enumerate(set(all_skills)) if all_skills}
-        # Vectorization
         def skills_to_vector(skills):
             vector = [0] * len(skill_to_index)
             for skill in skills:
@@ -179,25 +195,28 @@ def fetch_data():
 # Load data after database initialization
 resume_df, internship_df = fetch_data()
 
-# Jaccard Similarity for matching (set-based, for accurate skill matching)
+# Jaccard Similarity for matching
 def jaccard_similarity(skills1, skills2):
     set1 = set(skills1)
     set2 = set(skills2)
     intersection = set1.intersection(set2)
     union = set1.union(set2)
-    return len(intersection) / len(union) if union else 0
+    similarity = len(intersection) / len(union) if union else 0
+    logging.info(f"Skills1: {set1}, Skills2: {set2}, Intersection: {intersection}, Union: {union}, Similarity: {similarity}")
+    return similarity
 
 # Custom Jinja filter to display type
 def get_type(value):
     return str(type(value).__name__)
 
 app.jinja_env.filters['type'] = get_type
+
 # Routes
-@app.route('/')
+@app.route('/', strict_slashes=False)
 def index():
     return render_template('index.html')
 
-@app.route('/recruiter_login', methods=['GET', 'POST'])
+@app.route('/recruiter_login', methods=['GET', 'POST'], strict_slashes=False)
 def recruiter_login():
     if request.method == 'POST':
         email = request.form['email']
@@ -215,7 +234,7 @@ def recruiter_login():
             flash('Invalid credentials. Please try again.', 'danger')
     return render_template('recruiter_login.html')
 
-@app.route('/intern_login', methods=['GET', 'POST'])
+@app.route('/intern_login', methods=['GET', 'POST'], strict_slashes=False)
 def intern_login():
     if request.method == 'POST':
         email = request.form['email']
@@ -233,7 +252,7 @@ def intern_login():
             flash('Invalid credentials. Please try again.', 'danger')
     return render_template('intern_login.html')
 
-@app.route('/recruiter_signup', methods=['GET', 'POST'])
+@app.route('/recruiter_signup', methods=['GET', 'POST'], strict_slashes=False)
 def recruiter_signup():
     if request.method == 'POST':
         name = request.form['name']
@@ -257,7 +276,7 @@ def recruiter_signup():
             return redirect(url_for('recruiter_login', signup_success='true'))
     return render_template('recruiter_signup.html')
 
-@app.route('/intern_signup', methods=['GET', 'POST'])
+@app.route('/intern_signup', methods=['GET', 'POST'], strict_slashes=False)
 def intern_signup():
     if request.method == 'POST':
         name = request.form['name']
@@ -281,7 +300,7 @@ def intern_signup():
             return redirect(url_for('intern_login', signup_success='true'))
     return render_template('intern_signup.html')
 
-@app.route('/recruiter_dashboard')
+@app.route('/recruiter_dashboard', strict_slashes=False)
 def recruiter_dashboard():
     if 'user_id' not in session or session['role'] != 'recruiter':
         flash('Please login as a recruiter.', 'danger')
@@ -300,7 +319,7 @@ def recruiter_dashboard():
     login_success = request.args.get('login_success', 'false') == 'true'
     return render_template('recruiter_dashboard.html', recruiter=recruiter, internships=internships, login_success=login_success)
 
-@app.route('/intern_dashboard')
+@app.route('/intern_dashboard', strict_slashes=False)
 def intern_dashboard():
     if 'user_id' not in session or session['role'] != 'intern':
         flash('Please login as an intern.', 'danger')
@@ -344,7 +363,7 @@ def intern_dashboard():
     login_success = request.args.get('login_success', 'false') == 'true'
     return render_template('intern_dashboard.html', internships=internships, applied_internship_ids=applied_internship_ids, login_success=login_success)
 
-@app.route('/register_internship', methods=['GET', 'POST'])
+@app.route('/register_internship', methods=['GET', 'POST'], strict_slashes=False)
 def register_internship():
     if 'user_id' not in session or session['role'] != 'recruiter':
         flash('Please login as a recruiter.', 'danger')
@@ -392,7 +411,7 @@ def register_internship():
         max_internship = conn.execute('SELECT MAX(id) as max_id FROM internship_info').fetchone()
         new_internship_id = (max_internship['max_id'] + 1) if max_internship and max_internship['max_id'] else 1
         conn.execute('''INSERT INTO internship_info (id, role, description_of_internship, start_date, end_date, duration, type_of_internship, skills_required, location, years_of_experience, phone_number, company_name, company_mail, user_id, posted_date, expected_salary) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-            (new_internship_id, role, description, start_date, end_date, duration, type_of_internship, skills_required, location, years_of_experience, phone_number, company_name, company_mail, user_id, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), ""))
+                     (new_internship_id, role, description, start_date, end_date, duration, type_of_internship, skills_required, location, years_of_experience, phone_number, company_name, company_mail, user_id, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), ""))
         conn.commit()
         conn.close()
         global resume_df, internship_df
@@ -402,7 +421,7 @@ def register_internship():
     conn.close()
     return render_template('register_internship.html', recruiter=recruiter)
 
-@app.route('/upload_resume', methods=['GET', 'POST'])
+@app.route('/upload_resume', methods=['GET', 'POST'], strict_slashes=False)
 def upload_resume():
     if 'user_id' not in session or session['role'] != 'intern':
         flash('Please login as an intern.', 'danger')
@@ -438,7 +457,7 @@ def upload_resume():
             flash('Allowed file types are pdf only', 'danger')
     return render_template('upload_resume.html')
 
-@app.route('/create_resume', methods=['GET', 'POST'])
+@app.route('/create_resume', methods=['GET', 'POST'], strict_slashes=False)
 def create_resume():
     if 'user_id' not in session or session['role'] != 'intern':
         flash('Please login as an intern!', 'danger')
@@ -469,10 +488,10 @@ def create_resume():
         existing_resume = conn.execute('SELECT * FROM resume_info WHERE user_id = ?', (user_id,)).fetchone()
         if existing_resume:
             conn.execute('''UPDATE resume_info SET name_of_applicant=?, email=?, phone_number=?, skills=?, experience=?, education=?, certifications=?, achievements=?, downloaded=? WHERE user_id=?''',
-                (name, email, phone, skills, experience, education, certifications, achievements, 0, user_id))
+                         (name, email, phone, skills, experience, education, certifications, achievements, 0, user_id))
         else:
             conn.execute('''INSERT INTO resume_info (user_id, name_of_applicant, email, phone_number, skills, experience, education, certifications, achievements, downloaded) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-                (user_id, name, email, phone, skills, experience, education, certifications, achievements, 0))
+                         (user_id, name, email, phone, skills, experience, education, certifications, achievements, 0))
         conn.commit()
         conn.close()
         global resume_df, internship_df
@@ -481,7 +500,7 @@ def create_resume():
         return redirect(url_for('intern_dashboard'))
     return render_template('create_resume.html')
 
-@app.route('/edit_resume', methods=['GET', 'POST'])
+@app.route('/edit_resume', methods=['GET', 'POST'], strict_slashes=False)
 def edit_resume():
     if 'user_id' not in session or session['role'] != 'intern':
         flash('Please login as an intern!', 'danger')
@@ -503,7 +522,7 @@ def edit_resume():
         certifications = request.form['certifications']
         achievements = request.form['achievements']
         conn.execute('''UPDATE resume_info SET name_of_applicant=?, email=?, phone_number=?, skills=?, experience=?, education=?, certifications=?, achievements=? WHERE user_id=?''',
-            (name, email, phone, skills, experience, education, certifications, achievements, user_id))
+                     (name, email, phone, skills, experience, education, certifications, achievements, user_id))
         conn.commit()
         conn.close()
         global resume_df, internship_df
@@ -513,10 +532,12 @@ def edit_resume():
     conn.close()
     return render_template('edit_resume.html', resume=resume)
 
-@app.route('/match', methods=['GET'])
+@app.route('/match', methods=['GET'], strict_slashes=False)
 def match():
+    logging.info(f"Session data: {session}")
     if 'user_id' not in session or session['role'] != 'intern':
         flash('Please login as an intern!', 'danger')
+        logging.info("Redirecting to intern_login due to missing session or role")
         return redirect(url_for('intern_login'))
     user_id = int(session['user_id'])
     try:
@@ -532,15 +553,18 @@ def match():
         user_skills = preprocess_skills(resume['skills'])
         logging.info(f"[MATCH DEBUG] User {user_id} processed skills: {user_skills}")
         if not internship_df.empty and 'processed_Required_Skills' in internship_df.columns:
+            logging.info(f"[MATCH DEBUG] internship_df has {len(internship_df)} internships")
             for idx, internship in internship_df.iterrows():
                 logging.info(f"[MATCH DEBUG] Internship {internship.get('id', 0)} processed required skills: {internship['processed_Required_Skills']}")
         else:
             logging.warning("[MATCH DEBUG] internship_df is empty or missing processed_Required_Skills column")
-        # ...existing code for matching...
+            flash('No internships available to match at this time.', 'info')
+            return render_template('match.html', matched_internships=[])
         matched_internships = []
         if not internship_df.empty and 'processed_Required_Skills' in internship_df.columns:
             for idx, internship in internship_df.iterrows():
                 similarity = jaccard_similarity(user_skills, internship['processed_Required_Skills'])
+                logging.info(f"[MATCH DEBUG] Internship {internship.get('id', 0)} similarity: {similarity}")
                 if similarity > 0:
                     matched_internships.append({
                         'id': internship.get('id', 0),
@@ -553,11 +577,7 @@ def match():
                         'location': internship.get('location', 'N/A'),
                         'similarity_score': round(similarity * 100, 2)
                     })
-        else:
-            logging.warning("internship_df is empty or missing processed_Required_Skills column")
-            flash('No internships available to match at this time.', 'info')
-            return render_template('match.html', matched_internships=[])
-        logging.info(f"Found {len(matched_internships)} matched internships for user {user_id}")
+        logging.info(f"[MATCH DEBUG] Found {len(matched_internships)} matched internships for user {user_id}")
         matched_internships = sorted(matched_internships, key=lambda x: x['similarity_score'], reverse=True)
         return render_template('match.html', matched_internships=matched_internships)
     except Exception as e:
@@ -565,7 +585,7 @@ def match():
         flash('An error occurred while matching internships. Please try again later.', 'danger')
         return redirect(url_for('intern_dashboard'))
 
-@app.route('/top_matched_applicants/<int:internship_id>')
+@app.route('/top_matched_applicants/<int:internship_id>', strict_slashes=False)
 def top_matched_applicants(internship_id):
     if 'user_id' not in session or session['role'] != 'recruiter':
         flash('Please login as a recruiter.', 'danger')
@@ -599,14 +619,14 @@ def top_matched_applicants(internship_id):
     applicants = sorted(applicants, key=lambda x: x['similarity'], reverse=True)[:5]
     return render_template('top_matched_applicants.html', applicants=applicants, internship_id=internship_id)
 
-@app.route('/download_resume/<path:resume_path>')
+@app.route('/download_resume/<path:resume_path>', strict_slashes=False)
 def download_resume(resume_path):
     if 'user_id' not in session or session['role'] != 'recruiter':
         flash('Please login as a recruiter.', 'danger')
         return redirect(url_for('recruiter_login'))
     return send_file(resume_path, as_attachment=True)
 
-@app.route('/apply_internship/<int:internship_id>', methods=['POST'])
+@app.route('/apply_internship/<int:internship_id>', methods=['POST'], strict_slashes=False)
 def apply_internship(internship_id):
     if 'user_id' not in session or session['role'] != 'intern':
         flash('Please login as an intern!', 'danger')
@@ -634,7 +654,7 @@ def apply_internship(internship_id):
         flash('An error occurred while applying. Please try again.', 'danger')
         return redirect(url_for('intern_dashboard'))
 
-@app.route('/applied_internships')
+@app.route('/applied_internships', strict_slashes=False)
 def applied_internships():
     if 'user_id' not in session or session['role'] != 'intern':
         flash('Please login as an intern!', 'danger')
@@ -656,7 +676,7 @@ def applied_internships():
         flash('An error occurred while fetching applied internships. Please try again.', 'danger')
         return redirect(url_for('intern_dashboard'))
 
-@app.route('/applied_applicants')
+@app.route('/applied_applicants', strict_slashes=False)
 def applied_applicants():
     if 'user_id' not in session or session['role'] != 'recruiter':
         flash('Please login as a recruiter!', 'danger')
@@ -686,7 +706,7 @@ def applied_applicants():
     conn.close()
     return render_template('applied_applicants.html', applied_interns=applied_interns)
 
-@app.route('/applied_applicants/<int:internship_id>')
+@app.route('/applied_applicants/<int:internship_id>', strict_slashes=False)
 def applied_applicants_specific(internship_id):
     if 'user_id' not in session or session['role'] != 'recruiter':
         flash('Please login as a recruiter!', 'danger')
@@ -712,7 +732,7 @@ def applied_applicants_specific(internship_id):
     conn.close()
     return render_template('applied_applicants.html', applicants=applicants, internship=internship)
 
-@app.route('/edit_profile', methods=['GET', 'POST'])
+@app.route('/edit_profile', methods=['GET', 'POST'], strict_slashes=False)
 def edit_profile():
     if 'user_id' not in session:
         flash('Please login!', 'danger')
@@ -742,7 +762,7 @@ def edit_profile():
     conn.close()
     return render_template('edit_profile.html', user=user)
 
-@app.route('/edit_organization_profile', methods=['GET', 'POST'])
+@app.route('/edit_organization_profile', methods=['GET', 'POST'], strict_slashes=False)
 def edit_organization_profile():
     if 'user_id' not in session or session['role'] != 'recruiter':
         flash('Please login as a recruiter!', 'danger')
@@ -773,7 +793,7 @@ def edit_organization_profile():
                 conn.close()
                 return render_template('edit_organization_profile.html', recruiter=user)
         conn.execute('UPDATE users SET organization_name = ?, contact_details = ?, location = ?, website_link = ? WHERE user_id = ?',
-            (organization_name, contact_details or None, location or None, website_link or None, user_id))
+                     (organization_name, contact_details or None, location or None, website_link or None, user_id))
         conn.commit()
         conn.close()
         flash('Organization profile updated successfully!', 'success')
@@ -781,7 +801,7 @@ def edit_organization_profile():
     conn.close()
     return render_template('edit_organization_profile.html', recruiter=user)
 
-@app.route('/logout')
+@app.route('/logout', strict_slashes=False)
 def logout():
     session.clear()
     flash('You have been logged out.', 'success')
@@ -791,9 +811,8 @@ def logout():
 def handle_exception(e):
     import traceback
     error_message = f"Exception: {str(e)}\n{traceback.format_exc()}"
-    print(error_message)
     logging.error(error_message)
     return render_template("500.html", error_message=str(e)), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=int(os.getenv('PORT', 7860)))
