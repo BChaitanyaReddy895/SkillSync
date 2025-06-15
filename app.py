@@ -147,7 +147,8 @@ def preprocess_skills(skills):
     if not isinstance(skills, str) or skills.strip() == '':
         logging.warning(f"Skills empty or invalid: {skills}")
         return []
-    skills_clean = skills.replace(';', ',').replace('|', ',').replace('/', ',')
+    # Replace multiple separators with comma
+    skills_clean = re.sub(r'[;|\\/]', ',', skills)
     tokens = [s.strip().lower() for s in skills_clean.split(',') if s.strip()]
     stop_words = set(stopwords.words('english'))
     processed = []
@@ -187,6 +188,7 @@ def fetch_data():
             return vector
         resume_df['Skill_vector'] = resume_df['processed_Skills'].apply(skills_to_vector) if not resume_df.empty else []
         internship_df['Required_Skill_vector'] = internship_df['processed_Required_Skills'].apply(skills_to_vector) if not internship_df.empty else []
+        logging.info(f"fetch_data completed successfully")
         return resume_df, internship_df
     except Exception as e:
         logging.error(f"Error fetching data: {str(e)}")
@@ -321,47 +323,62 @@ def recruiter_dashboard():
 
 @app.route('/intern_dashboard', strict_slashes=False)
 def intern_dashboard():
+    logging.info(f"Session data: {session}")
     if 'user_id' not in session or session['role'] != 'intern':
         flash('Please login as an intern.', 'danger')
         return redirect(url_for('intern_login'))
     user_id = int(session['user_id'])
-    conn = get_db_connection()
-    intern = conn.execute('SELECT * FROM users WHERE user_id = ?', (user_id,)).fetchone()
-    resume = conn.execute('SELECT * FROM resume_info WHERE user_id = ?', (user_id,)).fetchone()
-    applications = conn.execute('SELECT * FROM applications WHERE user_id = ?', (user_id,)).fetchall()
-    conn.close()
-    if not intern:
-        flash('Intern profile not found. Please log in again.', 'danger')
-        session.pop('user_id', None)
-        session.pop('user_name', None)
-        session.pop('role', None)
+    try:
+        # Force refresh data
+        global resume_df, internship_df
+        resume_df, internship_df = fetch_data()
+        logging.info(f"[DASHBOARD DEBUG] Refreshed data: resume_df shape: {resume_df.shape}, internship_df shape: {internship_df.shape}")
+        
+        conn = get_db_connection()
+        intern = conn.execute('SELECT * FROM users WHERE user_id = ?', (user_id,)).fetchone()
+        resume = conn.execute('SELECT * FROM resume_info WHERE user_id = ?', (user_id,)).fetchone()
+        applications = conn.execute('SELECT * FROM applications WHERE user_id = ?', (user_id,)).fetchall()
+        conn.close()
+        if not intern:
+            flash('Intern profile not found. Please log in again.', 'danger')
+            session.pop('user_id', None)
+            session.pop('user_name', None)
+            session.pop('role', None)
+            return redirect(url_for('intern_login'))
+        if not resume:
+            flash('Please create your resume first!', 'warning')
+            return redirect(url_for('create_resume'))
+        applied_internship_ids = [app['internship_id'] for app in applications]
+        user_skills = preprocess_skills(resume['skills'])
+        logging.info(f"[DASHBOARD DEBUG] User {user_id} processed skills: {user_skills}")
+        internships = []
+        if not internship_df.empty and 'processed_Required_Skills' in internship_df.columns:
+            logging.info(f"[DASHBOARD DEBUG] internship_df has {len(internship_df)} internships")
+            for idx, internship in internship_df.iterrows():
+                similarity = jaccard_similarity(user_skills, internship['processed_Required_Skills'])
+                logging.info(f"[DASHBOARD DEBUG] Internship {internship.get('id', 0)} similarity: {similarity}")
+                if similarity > 0:  # Include any non-zero similarity for debugging
+                    internships.append({
+                        'id': internship.get('id', 0),
+                        'role': internship.get('role', 'N/A'),
+                        'company_name': internship.get('company_name', 'N/A'),
+                        'description': internship.get('description_of_internship', 'N/A'),
+                        'duration': internship.get('duration', 'N/A'),
+                        'type_of_internship': internship.get('type_of_internship', 'N/A'),
+                        'skills_required': internship.get('skills_required', 'N/A'),
+                        'location': internship.get('location', 'N/A'),
+                        'similarity_score': round(similarity * 100, 2)
+                    })
+        else:
+            logging.warning("[DASHBOARD DEBUG] internship_df is empty or missing processed_Required_Skills column")
+        internships = sorted(internships, key=lambda x: x['similarity_score'], reverse=True)
+        logging.info(f"[DASHBOARD DEBUG] Found {len(internships)} matched internships for user {user_id}")
+        login_success = request.args.get('login_success', 'false') == 'true'
+        return render_template('intern_dashboard.html', user_name=session['user_name'], internships=internships, applied_internship_ids=applied_internship_ids, login_success=login_success)
+    except Exception as e:
+        logging.error(f"Error in /intern_dashboard for user {user_id}: {str(e)}")
+        flash('An error occurred while loading the dashboard. Please try again.', 'danger')
         return redirect(url_for('intern_login'))
-    if not resume:
-        flash('Please create your resume first!', 'warning')
-        return redirect(url_for('create_resume'))
-    applied_internship_ids = [app['internship_id'] for app in applications]
-    user_skills = preprocess_skills(resume['skills'])
-    internships = []
-    if not internship_df.empty and 'processed_Required_Skills' in internship_df.columns:
-        for idx, internship in internship_df.iterrows():
-            similarity = jaccard_similarity(user_skills, internship['processed_Required_Skills'])
-            if similarity > 0:
-                internships.append({
-                    'id': internship.get('id', 0),
-                    'role': internship.get('role', 'N/A'),
-                    'company_name': internship.get('company_name', 'N/A'),
-                    'description': internship.get('description_of_internship', 'N/A'),
-                    'duration': internship.get('duration', 'N/A'),
-                    'type_of_internship': internship.get('type_of_internship', 'N/A'),
-                    'skills_required': internship.get('skills_required', 'N/A'),
-                    'location': internship.get('location', 'N/A'),
-                    'similarity_score': round(similarity * 100, 2)
-                })
-    else:
-        logging.warning("internship_df is empty or missing processed_Required_Skills column")
-    internships = sorted(internships, key=lambda x: x['similarity_score'], reverse=True)
-    login_success = request.args.get('login_success', 'false') == 'true'
-    return render_template('intern_dashboard.html', internships=internships, applied_internship_ids=applied_internship_ids, login_success=login_success)
 
 @app.route('/register_internship', methods=['GET', 'POST'], strict_slashes=False)
 def register_internship():
@@ -541,6 +558,11 @@ def match():
         return redirect(url_for('intern_login'))
     user_id = int(session['user_id'])
     try:
+        # Force refresh data
+        global resume_df, internship_df
+        resume_df, internship_df = fetch_data()
+        logging.info(f"[MATCH DEBUG] Refreshed data: resume_df shape: {resume_df.shape}, internship_df shape: {internship_df.shape}")
+        
         conn = get_db_connection()
         resume = conn.execute('SELECT * FROM resume_info WHERE user_id = ?', (user_id,)).fetchone()
         conn.close()
@@ -565,7 +587,7 @@ def match():
             for idx, internship in internship_df.iterrows():
                 similarity = jaccard_similarity(user_skills, internship['processed_Required_Skills'])
                 logging.info(f"[MATCH DEBUG] Internship {internship.get('id', 0)} similarity: {similarity}")
-                if similarity > 0:
+                if similarity > 0:  # Include any non-zero similarity for debugging
                     matched_internships.append({
                         'id': internship.get('id', 0),
                         'role': internship.get('role', 'N/A'),
@@ -579,6 +601,8 @@ def match():
                     })
         logging.info(f"[MATCH DEBUG] Found {len(matched_internships)} matched internships for user {user_id}")
         matched_internships = sorted(matched_internships, key=lambda x: x['similarity_score'], reverse=True)
+        if not matched_internships:
+            flash('No matching internships found. Try updating your skills or checking available internships.', 'info')
         return render_template('match.html', matched_internships=matched_internships)
     except Exception as e:
         logging.error(f"Error in /match route for user {user_id}: {str(e)}")
