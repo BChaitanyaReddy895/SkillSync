@@ -12,7 +12,7 @@ from datetime import datetime
 import re
 
 # Configure logging to a file in a writable directory
-log_dir = "./logs"
+log_dir = "/tmp/logs"
 os.makedirs(log_dir, exist_ok=True)
 logging.basicConfig(
     filename=os.path.join(log_dir, "app.log"),
