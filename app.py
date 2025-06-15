@@ -162,14 +162,14 @@ def fetch_data():
 # Load data after database initialization
 resume_df, internship_df = fetch_data()
 
-# Jaccard Similarity for matching
-def jaccard_similarity(vec1, vec2):
-    if len(vec1) != len(vec2):
-        return 0.0
-    set1, set2 = set(vec1), set(vec2)
-    intersection = len(set1.intersection(set2))
-    union = len(set1.union(set2))
-    return intersection / union if union != 0 else 0
+# Jaccard Similarity for matching (set-based, for accurate skill matching)
+def jaccard_similarity(skills1, skills2):
+    set1 = set(skills1)
+    set2 = set(skills2)
+    intersection = set1.intersection(set2)
+    union = set1.union(set2)
+    return len(intersection) / len(union) if union else 0
+
 # Custom Jinja filter to display type
 def get_type(value):
     return str(type(value).__name__)
@@ -305,14 +305,10 @@ def intern_dashboard():
         return redirect(url_for('create_resume'))
     applied_internship_ids = [app['internship_id'] for app in applications]
     user_skills = preprocess_skills(resume['skills'])
-    user_vector = [0] * len(skill_to_index)
-    for skill in user_skills:
-        if skill in skill_to_index:
-            user_vector[skill_to_index[skill]] = 1
     internships = []
-    if not internship_df.empty and 'Required_Skill_vector' in internship_df.columns:
+    if not internship_df.empty and 'processed_Required_Skills' in internship_df.columns:
         for idx, internship in internship_df.iterrows():
-            similarity = jaccard_similarity(user_vector, internship['Required_Skill_vector'])
+            similarity = jaccard_similarity(user_skills, internship['processed_Required_Skills'])
             if similarity > 0:
                 internships.append({
                     'id': internship.get('id', 0),
@@ -326,7 +322,7 @@ def intern_dashboard():
                     'similarity_score': round(similarity * 100, 2)
                 })
     else:
-        logging.warning("internship_df is empty or missing Required_Skill_vector column")
+        logging.warning("internship_df is empty or missing processed_Required_Skills column")
     internships = sorted(internships, key=lambda x: x['similarity_score'], reverse=True)
     login_success = request.args.get('login_success', 'false') == 'true'
     return render_template('intern_dashboard.html', internships=internships, applied_internship_ids=applied_internship_ids, login_success=login_success)
@@ -507,7 +503,9 @@ def match():
         return redirect(url_for('intern_login'))
     user_id = int(session['user_id'])
     try:
-        resume = db.resume_info.find_one({"user_id": user_id})
+        conn = get_db_connection()
+        resume = conn.execute('SELECT * FROM resume_info WHERE user_id = ?', (user_id,)).fetchone()
+        conn.close()
         if not resume:
             flash('Please create your resume first!', 'warning')
             return redirect(url_for('create_resume'))
@@ -516,19 +514,10 @@ def match():
             return redirect(url_for('edit_resume'))
         logging.info(f"Matching internships for user {user_id}, skills: {resume['skills']}")
         user_skills = preprocess_skills(resume['skills'])
-        user_vector = [0] * len(skill_to_index)
-        for skill in user_skills:
-            if skill in skill_to_index:
-                user_vector[skill_to_index[skill]] = 1
-        logging.info(f"User skills vector length: {len(user_vector)}, skill_to_index length: {len(skill_to_index)}")
         matched_internships = []
-        if not internship_df.empty and 'Required_Skill_vector' in internship_df.columns:
+        if not internship_df.empty and 'processed_Required_Skills' in internship_df.columns:
             for idx, internship in internship_df.iterrows():
-                required_vector = internship['Required_Skill_vector']
-                if len(user_vector) != len(required_vector):
-                    logging.warning(f"Vector length mismatch for internship {internship.get('id', 'unknown')}: user_vector={len(user_vector)}, required_vector={len(required_vector)}")
-                    continue
-                similarity = jaccard_similarity(user_vector, required_vector)
+                similarity = jaccard_similarity(user_skills, internship['processed_Required_Skills'])
                 if similarity > 0:
                     matched_internships.append({
                         'id': internship.get('id', 0),
@@ -542,7 +531,7 @@ def match():
                         'similarity_score': round(similarity * 100, 2)
                     })
         else:
-            logging.warning("internship_df is empty or missing Required_Skill_vector column")
+            logging.warning("internship_df is empty or missing processed_Required_Skills column")
             flash('No internships available to match at this time.', 'info')
             return render_template('match.html', matched_internships=[])
         logging.info(f"Found {len(matched_internships)} matched internships for user {user_id}")
@@ -569,12 +558,14 @@ def top_matched_applicants(internship_id):
         flash('Internship not found.', 'danger')
         return render_template('top_matched_applicants.html', applicants=[], internship_id=internship_id)
     internship = matching_internships.iloc[0]
-    internship_vector = internship['Required_Skill_vector']
+    internship_skills = internship['processed_Required_Skills']
     applicants = []
     for idx, resume in resume_df.iterrows():
-        similarity = jaccard_similarity(resume['Skill_vector'], internship_vector)
+        similarity = jaccard_similarity(resume['processed_Skills'], internship_skills)
         if similarity > 0:
-            user = db.users.find_one({"user_id": resume['user_id']})
+            conn = get_db_connection()
+            user = conn.execute('SELECT * FROM users WHERE user_id = ?', (resume['user_id'],)).fetchone()
+            conn.close()
             if user:
                 applicants.append({
                     'name': resume['name_of_applicant'],
