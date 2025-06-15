@@ -204,10 +204,10 @@
             <a href="{{ url_for('edit_profile') }}" class="button">Edit Profile</a>
         </div>
         <h2 style="color:#00796b;">Matched Internships</h2>
-        {% if matched_internships %}
-            {% for internship in matched_internships %}
+        {% if internships %}
+            {% for internship in internships %}
                 <div class="internship">
-                    <h3>{{ internship.internship_title }} at {{ internship.company }}</h3>
+                    <h3>{{ internship.role }} at {{ internship.company_name }}</h3>
                     <p><strong>Type:</strong> {{ internship.type_of_internship }}</p>
                     <p><strong>Duration:</strong> {{ internship.duration }}</p>
                     <p><strong>Location:</strong> {{ internship.location }}</p>
@@ -217,8 +217,7 @@
                         {% if internship.id in applied_internship_ids %}
                             <span class="applied-label">Applied</span>
                         {% else %}
-                            <form action="{{ url_for('apply_internship') }}" method="POST">
-                                <input type="hidden" name="internship_id" value="{{ internship.id }}">
+                            <form action="{{ url_for('apply_internship', internship_id=internship.id) }}" method="POST">
                                 <button type="submit" class="apply-button">Apply</button>
                             </form>
                         {% endif %}
