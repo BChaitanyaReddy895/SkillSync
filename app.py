@@ -341,7 +341,7 @@ def recruiter_signup():
             conn.close()
             flash('Signup successful! Please login.', 'success')
             return redirect(url_for('recruiter_login', signup_success=True))
-    return render_template('user_signup.html')
+    return render_template('recruiter_signup.html')
 
 @app.route('/intern_signup', methods=['GET', 'POST'], strict_slashes=False)
 def intern_signup():
