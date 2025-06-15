@@ -10,6 +10,7 @@ import logging
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import re
+import shutil
 
 # Configure logging to a file in a writable directory
 log_dir = "/tmp/logs"
@@ -35,9 +36,15 @@ nltk.download('punkt', download_dir=nltk_data_dir)
 nltk.download('stopwords', download_dir=nltk_data_dir)
 nltk.data.path.append(nltk_data_dir)
 
-# SQLite Connection
-DB_PATH = 'database.db'
+# Database configuration
+SOURCE_DB = 'database.db'
+DB_PATH = '/tmp/database.db'
 
+# Copy database.db to /tmp/database.db if needed
+if not os.path.exists(DB_PATH) and os.path.exists(SOURCE_DB):
+    shutil.copyfile(SOURCE_DB, DB_PATH)
+
+# SQLite Connection
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
