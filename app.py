@@ -512,8 +512,14 @@ def match():
         if 'skills' not in resume or not resume['skills']:
             flash('Please add skills to your resume to match internships!', 'warning')
             return redirect(url_for('edit_resume'))
-        logging.info(f"Matching internships for user {user_id}, skills: {resume['skills']}")
         user_skills = preprocess_skills(resume['skills'])
+        logging.info(f"[MATCH DEBUG] User {user_id} processed skills: {user_skills}")
+        if not internship_df.empty and 'processed_Required_Skills' in internship_df.columns:
+            for idx, internship in internship_df.iterrows():
+                logging.info(f"[MATCH DEBUG] Internship {internship.get('id', 0)} processed required skills: {internship['processed_Required_Skills']}")
+        else:
+            logging.warning("[MATCH DEBUG] internship_df is empty or missing processed_Required_Skills column")
+        # ...existing code for matching...
         matched_internships = []
         if not internship_df.empty and 'processed_Required_Skills' in internship_df.columns:
             for idx, internship in internship_df.iterrows():
