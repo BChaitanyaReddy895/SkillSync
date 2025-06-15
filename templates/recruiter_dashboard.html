@@ -104,7 +104,7 @@
             margin-bottom: 6px;
         }
 
-        .flash-messages .error {
+        .flash-messages .danger {
             color: #c62828;
             background: #ffebee;
             border-left: 4px solid #c62828;
@@ -117,7 +117,7 @@
             background: #fff;
             border: 1px solid #e0e0e0;
             border-radius: 8px;
-            padding: 18px 18px 12px 18px;
+            padding: 18px;
             margin: 16px 0 24px 0;
             box-shadow: 0 2px 8px rgba(0,0,0,0.07);
             max-width: 600px;
@@ -134,6 +134,38 @@
         .profile-card a {
             color: #00796b;
             text-decoration: underline;
+        }
+
+        .internships-section {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 18px;
+            margin: 24px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        }
+
+        .internships-section h2 {
+            color: #00796b;
+            margin-bottom: 16px;
+        }
+
+        .internship {
+            margin-bottom: 16px;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            background-color: #f9f9f9;
+        }
+
+        .internship p {
+            margin: 6px 0;
+        }
+
+        .internship-actions {
+            margin-top: 12px;
+            display: flex;
+            gap: 12px;
         }
 
         @media (max-width: 700px) {
@@ -154,32 +186,50 @@
         <img src="{{ url_for('static', filename='logo.png') }}" alt="SkillSync Logo">
         <nav>
             <span>Welcome, {{ user_name }}</span>
-            <a href="/logout">Logout</a>
+            <a href="{{ url_for('logout') }}">Logout</a>
         </nav>
     </header>
     <div class="container">
         <div class="flash-messages">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="{{ category }}">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
         </div>
         <h1>Recruiter Dashboard</h1>
         <div class="profile-card">
-            <p><strong>Name:</strong> {{ recruiter['name'] }}</p>
-            <p><strong>Organization:</strong> {{ recruiter['organization_name'] }}</p>
-            <p><strong>Contact Details:</strong> {{ recruiter['contact_details'] }}</p>
-            <p><strong>Location:</strong> {{ recruiter['location'] }}</p>
-            <p><strong>Website:</strong> <a href="{{ recruiter['website_link'] }}" target="_blank">{{ recruiter['website_link'] }}</a></p>
+            <p><strong>Name:</strong> {{ recruiter.name }}</p>
+            <p><strong>Organization:</strong> {{ recruiter.organization_name or 'N/A' }}</p>
+            <p><strong>Contact Details:</strong> {{ recruiter.contact_details or 'N/A' }}</p>
+            <p><strong>Location:</strong> {{ recruiter.location or 'N/A' }}</p>
+            <p><strong>Website:</strong> {% if recruiter.website_link %}<a href="{{ recruiter.website_link }}" target="_blank">{{ recruiter.website_link }}</a>{% else %}N/A{% endif %}</p>
         </div>
         <div class="dashboard-actions">
-            <a href="/register_internship" class="button">Register Internship</a>
-            <a href="/applied_applicants" class="button">Display Applied Applicants</a>
-            <a href="/top_matched_applicants/1" class="button">Top Matched Applicants</a>
-            <a href="/edit_organization_profile" class="button">Edit Organization Profile</a>
+            <a href="{{ url_for('register_internship') }}" class="button">Register Internship</a>
+            <a href="{{ url_for('applied_applicants') }}" class="button">Display Applied Applicants</a>
+            <a href="{{ url_for('edit_organization_profile') }}" class="button">Edit Organization Profile</a>
+        </div>
+        <div class="internships-section">
+            <h2>Posted Internships</h2>
+            {% if internships %}
+                {% for internship in internships %}
+                    <div class="internship">
+                        <p><strong>Role:</strong> {{ internship.role }}</p>
+                        <p><strong>Company:</strong> {{ internship.company_name }}</p>
+                        <p><strong>Location:</strong> {{ internship.location }}</p>
+                        <p><strong>Skills Required:</strong> {{ internship.skills_required }}</p>
+                        <div class="internship-actions">
+                            <a href="{{ url_for('applied_applicants_specific', internship_id=internship.id) }}" class="button">View Applicants</a>
+                            <a href="{{ url_for('top_matched_applicants', internship_id=internship.id) }}" class="button">Top Matched Applicants</a>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>No internships posted yet.</p>
+            {% endif %}
         </div>
     </div>
 </body>
