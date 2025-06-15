@@ -133,8 +133,11 @@ def insert_test_data():
         # Insert test internship
         conn.execute('INSERT OR IGNORE INTO internship_info (id, role, description_of_internship, start_date, end_date, duration, type_of_internship, skills_required, location, years_of_experience, phone_number, company_name, company_mail, user_id, posted_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                      (1, 'Software Intern', 'Develop software', '2025-07-01', '2025-12-31', '6 months', 'Full-time', 'python, java', 'Remote', 0, '+1-800-555-1234', 'Test Corp', 'recruiter@example.com', 2, '2025-06-15'))
+        # Insert test application
+        conn.execute('INSERT OR IGNORE INTO applications (user_id, internship_id, applied_at) VALUES (?, ?, ?)',
+                     (1, 1, '2025-06-15 20:07:00'))
         conn.commit()
-        logging.info("Inserted test data")
+        logging.info("Inserted test data with application")
     else:
         logging.info("Test data already exists, skipping insertion")
     conn.close()
@@ -148,8 +151,9 @@ else:
     conn = get_db_connection()
     intern_count = conn.execute('SELECT COUNT(*) FROM users WHERE email = ?', ('intern@example.com',)).fetchone()[0]
     internship_count = conn.execute('SELECT COUNT(*) FROM internship_info WHERE id = ?', (1,)).fetchone()[0]
+    application_count = conn.execute('SELECT COUNT(*) FROM applications WHERE user_id = ? AND internship_id = ?', (1, 1)).fetchone()[0]
     conn.close()
-    if intern_count == 0 or internship_count == 0:
+    if intern_count == 0 or internship_count == 0 or application_count == 0:
         logging.warning("Test data missing, reinitializing")
         initialize_database()
         insert_test_data()
@@ -249,7 +253,7 @@ def recruiter_login():
             session['user_name'] = user['name']
             session['role'] = 'recruiter'
             logging.info(f"Recruiter login successful: user_id={user['user_id']}")
-            flash('Login successful!', 'success')
+            flash('Success', 'success')
             return redirect(url_for('recruiter_dashboard', login_success='true'))
         else:
             flash('Invalid credentials. Please try again.', 'danger')
@@ -268,10 +272,10 @@ def intern_login():
             session['user_name'] = user['name']
             session['role'] = 'intern'
             logging.info(f"Intern login successful: user_id={user['user_id']}")
-            flash('Login successful!', 'success')
+            flash('Success', 'success')
             return redirect(url_for('intern_dashboard', login_success='true'))
         else:
-            flash('Invalid credentials. Please try again.', 'danger')
+            flash('Invalid credentials.', 'danger')
     return render_template('intern_login.html')
 
 @app.route('/recruiter_signup', methods=['GET', 'POST'], strict_slashes=False)
@@ -287,7 +291,7 @@ def recruiter_signup():
             conn.close()
             flash('Email already exists. Please use a different email.', 'danger')
         else:
-            hashed_password = generate_password_hash(password, method='pbkdf2:sha256', salt_length=16)
+            hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
             max_user = conn.execute('SELECT MAX(user_id) as max_id FROM users').fetchone()
             new_user_id = (max_user['max_id'] + 1) if max_user and max_user['max_id'] else 1
             conn.execute('INSERT INTO users (user_id, name, email, password, role, organization_name) VALUES (?, ?, ?, ?, ?, ?)',
@@ -296,7 +300,7 @@ def recruiter_signup():
             conn.close()
             flash('Signup successful! Please login.', 'success')
             return redirect(url_for('recruiter_login', signup_success='true'))
-    return render_template('recruiter_signup.html')
+    return render_template('user_signup.html')
 
 @app.route('/intern_signup', methods=['GET', 'POST'], strict_slashes=False)
 def intern_signup():
@@ -311,7 +315,7 @@ def intern_signup():
             conn.close()
             flash('Email already exists. Please use a different email.', 'danger')
         else:
-            hashed_password = generate_password_hash(password, method='pbkdf2:sha256', salt_length=16)
+            hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
             max_user = conn.execute('SELECT MAX(user_id) as max_id FROM users').fetchone()
             new_user_id = (max_user['max_id'] + 1) if max_user and max_user['max_id'] else 1
             conn.execute('INSERT INTO users (user_id, name, email, password, role, skills) VALUES (?, ?, ?, ?, ?, ?)',
@@ -324,8 +328,10 @@ def intern_signup():
 
 @app.route('/recruiter_dashboard', strict_slashes=False)
 def recruiter_dashboard():
+    logging.info(f"Recruiter dashboard, session data: {session}")
     if 'user_id' not in session or session['role'] != 'recruiter':
         flash('Please login as a recruiter.', 'danger')
+        logging.info("Redirecting to recruiter_login due to missing session or role")
         return redirect(url_for('recruiter_login'))
     user_id = int(session['user_id'])
     conn = get_db_connection()
@@ -339,7 +345,7 @@ def recruiter_dashboard():
         session.pop('role', None)
         return redirect(url_for('recruiter_login'))
     login_success = request.args.get('login_success', 'false') == 'true'
-    return render_template('recruiter_dashboard.html', recruiter=recruiter, internships=internships, login_success=login_success)
+    return render_template('recruiter_dashboard.html', recruiter=recruiter, internships=internships, login_success=login_success, user_name=session.get('user_name'))
 
 @app.route('/intern_dashboard', strict_slashes=False)
 def intern_dashboard():
@@ -349,7 +355,6 @@ def intern_dashboard():
         return redirect(url_for('intern_login'))
     user_id = int(session['user_id'])
     try:
-        # Force refresh data
         global resume_df, internship_df
         resume_df, internship_df = fetch_data()
         logging.info(f"[DASHBOARD DEBUG] Refreshed data: resume_df shape: {resume_df.shape}, internship_df shape: {internship_df.shape}")
@@ -377,7 +382,7 @@ def intern_dashboard():
             for idx, internship in internship_df.iterrows():
                 similarity = jaccard_similarity(user_skills, internship['processed_Required_Skills'])
                 logging.info(f"[DASHBOARD DEBUG] Internship {internship.get('id', 0)} similarity: {similarity}")
-                if similarity > 0:  # Include any non-zero similarity for debugging
+                if similarity > 0:
                     internships.append({
                         'id': internship.get('id', 0),
                         'role': internship.get('role', 'N/A'),
@@ -423,8 +428,8 @@ def register_internship():
         location = request.form['location']
         years_of_experience = int(request.form['years_of_experience'])
         phone_number = request.form['phone_number']
-        company_name = recruiter['organization_name'] if recruiter['organization_name'] else ''
-        company_mail = recruiter['email'] if recruiter['email'] else ''
+        company_name = recruiter['organization_name'] or ''
+        company_mail = recruiter['email'] or ''
         if not role or not description or not start_date or not end_date or not duration or not type_of_internship or not skills_required or not location or not phone_number:
             conn.close()
             flash('All required fields must be filled!', 'danger')
@@ -578,7 +583,6 @@ def match():
         return redirect(url_for('intern_login'))
     user_id = int(session['user_id'])
     try:
-        # Force refresh data
         global resume_df, internship_df
         resume_df, internship_df = fetch_data()
         logging.info(f"[MATCH DEBUG] Refreshed data: resume_df shape: {resume_df.shape}, internship_df shape: {internship_df.shape}")
@@ -607,7 +611,7 @@ def match():
             for idx, internship in internship_df.iterrows():
                 similarity = jaccard_similarity(user_skills, internship['processed_Required_Skills'])
                 logging.info(f"[MATCH DEBUG] Internship {internship.get('id', 0)} similarity: {similarity}")
-                if similarity > 0:  # Include any non-zero similarity for debugging
+                if similarity > 0:
                     matched_internships.append({
                         'id': internship.get('id', 0),
                         'role': internship.get('role', 'N/A'),
@@ -631,37 +635,59 @@ def match():
 
 @app.route('/top_matched_applicants/<int:internship_id>', strict_slashes=False)
 def top_matched_applicants(internship_id):
+    logging.info(f"Top matched applicants for internship {internship_id}, session data: {session}")
     if 'user_id' not in session or session['role'] != 'recruiter':
         flash('Please login as a recruiter.', 'danger')
+        logging.info("Redirecting to recruiter_login due to missing session or role")
         return redirect(url_for('recruiter_login'))
-    if internship_df.empty:
-        flash('No internships available to match applicants.', 'warning')
-        return render_template('top_matched_applicants.html', applicants=[], internship_id=internship_id)
-    if 'id' not in internship_df.columns:
-        flash('Internship data is malformed. Please contact support.', 'danger')
-        return render_template('top_matched_applicants.html', applicants=[], internship_id=internship_id)
-    matching_internships = internship_df[internship_df['id'] == internship_id]
-    if matching_internships.empty:
-        flash('Internship not found.', 'danger')
-        return render_template('top_matched_applicants.html', applicants=[], internship_id=internship_id)
-    internship = matching_internships.iloc[0]
-    internship_skills = internship['processed_Required_Skills']
-    applicants = []
-    for idx, resume in resume_df.iterrows():
-        similarity = jaccard_similarity(resume['processed_Skills'], internship_skills)
-        if similarity > 0:
-            conn = get_db_connection()
-            user = conn.execute('SELECT * FROM users WHERE user_id = ?', (resume['user_id'],)).fetchone()
+    user_id = int(session['user_id'])
+    try:
+        # Refresh data
+        global resume_df, internship_df
+        resume_df, internship_df = fetch_data()
+        logging.info(f"[TOP MATCH DEBUG] Refreshed data: resume_df shape: {resume_df.shape}, internship_df shape: {internship_df.shape}")
+        
+        # Verify internship exists and belongs to recruiter
+        conn = get_db_connection()
+        internship = conn.execute('SELECT * FROM internship_info WHERE id = ? AND user_id = ?', (internship_id, user_id)).fetchone()
+        if not internship:
             conn.close()
-            if user:
-                applicants.append({
-                    'name': resume['name_of_applicant'],
-                    'email': user['email'],
-                    'similarity': round(similarity * 100, 2),
-                    'resume_path': resume.get('resume_path', '')
-                })
-    applicants = sorted(applicants, key=lambda x: x['similarity'], reverse=True)[:5]
-    return render_template('top_matched_applicants.html', applicants=applicants, internship_id=internship_id)
+            flash('Internship not found or you do not have access.', 'danger')
+            logging.warning(f"Internship {internship_id} not found or not owned by user {user_id}")
+            return render_template('top_matched_applicants.html', matched_applicants=[], internship_title='Unknown')
+        
+        internship_title = internship['role']
+        internship_skills = preprocess_skills(internship['skills_required'])
+        logging.info(f"[TOP MATCH DEBUG] Internship {internship_id} processed skills: {internship_skills}")
+        
+        matched_applicants = []
+        if not resume_df.empty and 'processed_Skills' in resume_df.columns:
+            logging.info(f"[TOP MATCH DEBUG] resume_df has {len(resume_df)} resumes")
+            for idx, resume in resume_df.iterrows():
+                similarity = jaccard_similarity(resume['processed_Skills'], internship_skills)
+                logging.info(f"[TOP MATCH DEBUG] Resume for user {resume['user_id']} similarity: {similarity}")
+                if similarity > 0:
+                    user = conn.execute('SELECT * FROM users WHERE user_id = ?', (resume['user_id'],)).fetchone()
+                    if user:
+                        matched_applicants.append({
+                            'name': resume['name_of_applicant'],
+                            'email': user['email'],
+                            'skills': resume['skills'],
+                            'similarity_score': round(similarity * 100, 2),
+                            'resume_path': resume.get('resume_path', '')
+                        })
+        else:
+            logging.warning("[TOP MATCH DEBUG] resume_df is empty or missing processed_Skills column")
+        
+        conn.close()
+        matched_applicants = sorted(matched_applicants, key=lambda x: x['similarity_score'], reverse=True)[:5]
+        logging.info(f"[TOP MATCH DEBUG] Found {len(matched_applicants)} matched applicants for internship {internship_id}")
+        
+        return render_template('top_matched_applicants.html', matched_applicants=matched_applicants, internship_title=internship_title)
+    except Exception as e:
+        logging.error(f"Error in /top_matched_applicants for internship {internship_id}: {str(e)}")
+        flash('An error occurred while fetching matched applicants. Please try again.', 'danger')
+        return render_template('top_matched_applicants.html', matched_applicants=[], internship_title='Unknown')
 
 @app.route('/download_resume/<path:resume_path>', strict_slashes=False)
 def download_resume(resume_path):
@@ -680,21 +706,18 @@ def apply_internship(internship_id):
     user_id = int(session['user_id'])
     try:
         conn = get_db_connection()
-        # Verify internship exists
         internship = conn.execute('SELECT * FROM internship_info WHERE id = ?', (internship_id,)).fetchone()
         if not internship:
             conn.close()
             flash('Internship not found.', 'danger')
             logging.warning(f"Internship {internship_id} not found")
             return redirect(url_for('intern_dashboard'))
-        # Check for existing application
         existing_application = conn.execute('SELECT * FROM applications WHERE user_id = ? AND internship_id = ?', (user_id, internship_id)).fetchone()
         if existing_application:
             conn.close()
             flash('You have already applied to this internship!', 'warning')
             logging.info(f"User {user_id} already applied to internship {internship_id}")
             return redirect(url_for('intern_dashboard'))
-        # Insert new application
         applied_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         conn.execute('INSERT INTO applications (user_id, internship_id, applied_at) VALUES (?, ?, ?)', (user_id, internship_id, applied_at))
         conn.commit()
@@ -723,7 +746,6 @@ def applied_internships():
     user_id = int(session['user_id'])
     try:
         conn = get_db_connection()
-        # Join applications and internship_info to get all necessary data
         query = '''
         SELECT i.*, a.applied_at
         FROM applications a
@@ -732,7 +754,6 @@ def applied_internships():
         '''
         applied_internships = conn.execute(query, (user_id,)).fetchall()
         conn.close()
-        # Convert to list of dicts with template-compatible keys
         applied_internships_list = [
             {
                 'role': internship['role'],
@@ -753,59 +774,89 @@ def applied_internships():
 
 @app.route('/applied_applicants', strict_slashes=False)
 def applied_applicants():
+    logging.info(f"Fetching applied applicants, session data: {session}")
     if 'user_id' not in session or session['role'] != 'recruiter':
         flash('Please login as a recruiter!', 'danger')
+        logging.info("Redirecting to recruiter_login due to missing session or role")
         return redirect(url_for('recruiter_login'))
     user_id = int(session['user_id'])
-    conn = get_db_connection()
-    recruiter_internships = conn.execute('SELECT * FROM internship_info WHERE user_id = ?', (user_id,)).fetchall()
-    internship_ids = [internship['id'] for internship in recruiter_internships]
-    if internship_ids:
-        placeholders = ','.join(['?'] * len(internship_ids))
-        applications = conn.execute(f'SELECT * FROM applications WHERE internship_id IN ({placeholders})', internship_ids).fetchall()
-    else:
-        applications = []
-    applied_interns = []
-    for app in applications:
-        intern = conn.execute('SELECT * FROM resume_info WHERE user_id = ?', (app['user_id'],)).fetchone()
-        user = conn.execute('SELECT * FROM users WHERE user_id = ?', (app['user_id'],)).fetchone()
-        internship = conn.execute('SELECT * FROM internship_info WHERE id = ?', (app['internship_id'],)).fetchone()
-        if intern and user and internship:
-            applied_interns.append({
-                'intern_name': intern['name_of_applicant'],
-                'intern_email': user['email'],
-                'internship_title': internship['role'],
-                'applied_at': app['applied_at'],
-                'resume_path': intern['resume_path'] if 'resume_path' in intern.keys() else ''
-            })
-    conn.close()
-    return render_template('applied_applicants.html', applied_interns=applied_interns)
+    try:
+        conn = get_db_connection()
+        query = '''
+        SELECT r.name_of_applicant, u.email, i.role, a.applied_at, r.resume_path
+        FROM applications a
+        JOIN resume_info r ON a.user_id = r.user_id
+        JOIN users u ON a.user_id = u.user_id
+        JOIN internship_info i ON a.internship_id = i.id
+        WHERE i.user_id = ?
+        '''
+        results = conn.execute(query, (user_id,)).fetchall()
+        conn.close()
+        
+        applicants = [
+            {
+                'name': applicant['name_of_applicant'],
+                'email': applicant['email'],
+                'internship_title': applicant['role'],
+                'applied_at': applicant['applied_at'],
+                'resume_path': applicant['resume_path'] or ''
+            }
+        ]
+        logging.info(f"[APPLIED APPLICANTS] Found {len(applicants)} applicants for user {user_id}")
+        
+        return render_template('applied_applicants.html', applicants=applicants)
+    except Exception as e:
+        logging.error(f"Error in /applied_applicants for user {user_id}: {str(e)}")
+        flash('An error occurred while fetching applied applicants. Please try again.', 'danger')
+        return redirect(url_for('recruiter_dashboard'))
 
 @app.route('/applied_applicants/<int:internship_id>', strict_slashes=False)
 def applied_applicants_specific(internship_id):
+    logging.info(f"Fetching applicants for internship {internship_id}, session data: {session}")
     if 'user_id' not in session or session['role'] != 'recruiter':
         flash('Please login as a recruiter!', 'danger')
+        logging.info("Redirecting to recruiter_login due to missing session or role")
         return redirect(url_for('recruiter_login'))
     user_id = int(session['user_id'])
-    conn = get_db_connection()
-    applications = conn.execute('SELECT * FROM applications WHERE internship_id = ?', (internship_id,)).fetchall()
-    user_ids = [app['user_id'] for app in applications]
-    applicants = []
-    for uid in user_ids:
-        resume = conn.execute('SELECT * FROM resume_info WHERE user_id = ?', (uid,)).fetchone()
-        user = conn.execute('SELECT * FROM users WHERE user_id = ?', (uid,)).fetchone()
-        if resume and user:
-            applicants.append({
-                "name_of_applicant": resume['name_of_applicant'],
-                "email": user['email'],
-                "skills": resume['skills'],
-                "experience": resume['experience'],
-                "education": resume['education'],
-                "resume_path": resume['resume_path'] if 'resume_path' in resume.keys() else ''
-            })
-    internship = conn.execute('SELECT * FROM internship_info WHERE id = ?', (internship_id,)).fetchone()
-    conn.close()
-    return render_template('applied_applicants.html', applicants=applicants, internship=internship)
+    try:
+        conn = get_db_connection()
+        # Verify internship belongs to recruiter
+        internship = conn.execute('SELECT * FROM internship_info WHERE id = ? AND user_id = ?', (internship_id, user_id)).fetchone()
+        if not internship:
+            conn.close()
+            flash('Internship not found or you do not have access.', 'danger')
+            logging.warning(f"Internship {internship_id} not found or not owned by user {user_id}")
+            return render_template('applied_applicants.html', applicants=[], internship=None)
+        
+        query = '''
+        SELECT r.name_of_applicant, u.email, r.skills, r.experience, r.education, r.resume_path, a.applied_at
+        FROM applications a
+        JOIN resume_info r ON a.user_id = r.user_id
+        JOIN users u ON a.user_id = u.user_id
+        WHERE a.internship_id = ?
+        '''
+        applicants = conn.execute(query, (internship_id,)).fetchall()
+        conn.close()
+        
+        applicants_list = [
+            {
+                'name': applicant['name_of_applicant'],
+                'email': applicant['email'],
+                'skills': applicant['skills'],
+                'experience': applicant['experience'],
+                'education': applicant['education'],
+                'resume_path': applicant['resume_path'] or '',
+                'applied_at': applicant['applied_at']
+            }
+            for applicant in applicants
+        ]
+        logging.info(f"[APPLICANTS SPECIFIC] Found {len(applicants_list)} applicants for internship {internship_id}")
+        
+        return render_template('applied_applicants.html', applicants=applicants_list, internship=internship)
+    except Exception as e:
+        logging.error(f"Error in /applied_applicants/{internship_id} for user {user_id}: {str(e)}")
+        flash('An error occurred while fetching applicants. Please try again.', 'danger')
+        return redirect(url_for('recruiter_dashboard'))
 
 @app.route('/edit_profile', methods=['GET', 'POST'], strict_slashes=False)
 def edit_profile():
@@ -825,7 +876,7 @@ def edit_profile():
             conn.close()
             return render_template('edit_profile.html', user=user)
         if password:
-            hashed_password = generate_password_hash(password, method='pbkdf2:sha256', salt_length=16)
+            hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
             conn.execute('UPDATE users SET name = ?, email = ?, password = ? WHERE user_id = ?', (name, email, hashed_password, user_id))
         else:
             conn.execute('UPDATE users SET name = ?, email = ? WHERE user_id = ?', (name, email, user_id))
