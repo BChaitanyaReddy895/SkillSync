@@ -346,7 +346,6 @@ def intern_dashboard():
     logging.info(f"Session data: {session}")
     if 'user_id' not in session or session['role'] != 'intern':
         flash('Please login as an intern.', 'danger')
-        logging.info("Redirecting to intern_login due to missing session or role")
         return redirect(url_for('intern_login'))
     user_id = int(session['user_id'])
     try:
@@ -673,49 +672,80 @@ def download_resume(resume_path):
 
 @app.route('/apply_internship/<int:internship_id>', methods=['POST'], strict_slashes=False)
 def apply_internship(internship_id):
+    logging.info(f"Applying to internship {internship_id}, session data: {session}")
     if 'user_id' not in session or session['role'] != 'intern':
         flash('Please login as an intern!', 'danger')
+        logging.info("Redirecting to intern_login due to missing session or role")
         return redirect(url_for('intern_login'))
     user_id = int(session['user_id'])
     try:
         conn = get_db_connection()
+        # Verify internship exists
         internship = conn.execute('SELECT * FROM internship_info WHERE id = ?', (internship_id,)).fetchone()
         if not internship:
             conn.close()
             flash('Internship not found.', 'danger')
+            logging.warning(f"Internship {internship_id} not found")
             return redirect(url_for('intern_dashboard'))
+        # Check for existing application
         existing_application = conn.execute('SELECT * FROM applications WHERE user_id = ? AND internship_id = ?', (user_id, internship_id)).fetchone()
         if existing_application:
             conn.close()
             flash('You have already applied to this internship!', 'warning')
+            logging.info(f"User {user_id} already applied to internship {internship_id}")
             return redirect(url_for('intern_dashboard'))
-        conn.execute('INSERT INTO applications (user_id, internship_id, applied_at) VALUES (?, ?, ?)', (user_id, internship_id, datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+        # Insert new application
+        applied_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        conn.execute('INSERT INTO applications (user_id, internship_id, applied_at) VALUES (?, ?, ?)', (user_id, internship_id, applied_at))
         conn.commit()
+        logging.info(f"Application recorded: user_id={user_id}, internship_id={internship_id}, applied_at={applied_at}")
         conn.close()
         flash('Applied successfully!', 'success')
         return redirect(url_for('intern_dashboard'))
+    except sqlite3.Error as db_e:
+        logging.error(f"Database error applying to internship {internship_id} for user {user_id}: {str(db_e)}")
+        flash('A database error occurred while applying. Please try again.', 'danger')
+        conn.close()
+        return redirect(url_for('intern_dashboard'))
     except Exception as e:
-        logging.error(f"Error applying to internship {internship_id} for user {user_id}: {str(e)}")
-        flash('An error occurred while applying. Please try again.', 'danger')
+        logging.error(f"Unexpected error applying to internship {internship_id} for user {user_id}: {str(e)}")
+        flash('An unexpected error occurred while applying. Please try again.', 'danger')
+        conn.close()
         return redirect(url_for('intern_dashboard'))
 
 @app.route('/applied_internships', strict_slashes=False)
 def applied_internships():
+    logging.info(f"Fetching applied internships, session data: {session}")
     if 'user_id' not in session or session['role'] != 'intern':
         flash('Please login as an intern!', 'danger')
+        logging.info("Redirecting to intern_login due to missing session or role")
         return redirect(url_for('intern_login'))
     user_id = int(session['user_id'])
     try:
         conn = get_db_connection()
-        applications = conn.execute('SELECT * FROM applications WHERE user_id = ?', (user_id,)).fetchall()
-        internship_ids = [app['internship_id'] for app in applications]
-        if internship_ids:
-            placeholders = ','.join(['?'] * len(internship_ids))
-            internships = conn.execute(f'SELECT * FROM internship_info WHERE id IN ({placeholders})', internship_ids).fetchall()
-        else:
-            internships = []
+        # Join applications and internship_info to get all necessary data
+        query = '''
+        SELECT i.*, a.applied_at
+        FROM applications a
+        JOIN internship_info i ON a.internship_id = i.id
+        WHERE a.user_id = ?
+        '''
+        applied_internships = conn.execute(query, (user_id,)).fetchall()
         conn.close()
-        return render_template('applied_internships.html', internships=internships)
+        # Convert to list of dicts with template-compatible keys
+        applied_internships_list = [
+            {
+                'role': internship['role'],
+                'company_name': internship['company_name'],
+                'type_of_internship': internship['type_of_internship'],
+                'location': internship['location'],
+                'description': internship['description_of_internship'],
+                'applied_at': internship['applied_at']
+            }
+            for internship in applied_internships
+        ]
+        logging.info(f"[APPLIED DEBUG] Found {len(applied_internships_list)} applied internships for user {user_id}")
+        return render_template('applied_internships.html', applied_internships=applied_internships_list)
     except Exception as e:
         logging.error(f"Error in /applied_internships for user {user_id}: {str(e)}")
         flash('An error occurred while fetching applied internships. Please try again.', 'danger')
