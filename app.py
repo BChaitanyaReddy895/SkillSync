@@ -36,7 +36,7 @@ nltk.download('stopwords', download_dir=nltk_data_dir)
 nltk.data.path.append(nltk_data_dir)
 
 # SQLite Connection
-DB_PATH = '/tmp/database.db'
+DB_PATH = 'database.db'
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
