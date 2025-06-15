@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Internal Server Error</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f8d7da; color: #721c24; padding: 40px; }
+        .container { background: #fff; border-radius: 8px; padding: 30px; max-width: 600px; margin: auto; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h1 { color: #c82333; }
+        pre { background: #f1f1f1; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>500 - Internal Server Error</h1>
+        <p>Sorry, something went wrong on our end.</p>
+        {% if error_message %}
+        <h3>Error Details:</h3>
+        <pre>{{ error_message }}</pre>
+        {% endif %}
+        <a href="/">Return to Home</a>
+    </div>
+</body>
+</html>
