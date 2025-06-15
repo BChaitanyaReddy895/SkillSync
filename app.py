@@ -336,7 +336,7 @@ def recruiter_signup():
             max_user = conn.execute('SELECT MAX(user_id) as max_id FROM users').fetchone()
             new_user_id = (max_user['max_id'] + 1) if max_user and max_user['max_id'] else 1
             conn.execute('INSERT INTO users (user_id, name, email, password, role, organization_name) VALUES (?, ?, ?, ?, ?, ?)', 
-                        (new_user_id, name, name, email, hashed_password, 'recruiter', company))
+                        (new_user_id, name, email, hashed_password, 'recruiter', company))
             conn.commit()
             conn.close()
             flash('Signup successful! Please login.', 'success')
@@ -521,9 +521,9 @@ def upload_resume():
             return redirect(request.url)
         file = request.files['resume']
         if file.filename == '':
-            flash('No selected file selected', 'danger')
+            flash('No selected file', 'danger')
             return redirect(request.url)
-        if file and file.filename.rsplit('.', 1')[1].lower() in ALLOWED_EXTENSIONS:
+        if file and file.filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS:
             user_id = int(session['user_id'])
             filename = f"{user_id}_resume.pdf"
             os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -562,20 +562,20 @@ def create_resume():
         achievements = request.form.get('achievements')
         user_id = int(session['user_id'])
         resume = {
-            'user_id": user_id,
-            "name_of_applicant": name,
-            "email": email,
-            "phone_number": phone,
-            "skills": skills,
-            "experience": education,
-            "education": experience,
-            "certifications": certifications,
-            "achievements": achievements,
-            "downloaded": 0
+            'user_id': user_id,
+            'name_of_applicant': name,
+            'email': email,
+            'phone_number': phone,
+            'skills': skills,
+            'experience': experience,
+            'education': education,
+            'certifications': certifications,
+            'achievements': achievements,
+            'downloaded': 0
         }
         
         conn = get_db_connection()
-        existing_resume = conn.execute('SELECT EXISTS FROM resume_info WHERE user_id = ?', (user_id,)).fetchone()
+        existing_resume = conn.execute('SELECT * FROM resume_info WHERE user_id = ?', (user_id,)).fetchone()
         if existing_resume:
             conn.execute('''
                 UPDATE resume_info SET name_of_applicant = ?, email = ?, phone_number = ?, skills = ?,
@@ -640,12 +640,11 @@ def match():
     if 'user_id' not in session or session['role'] != 'intern':
         flash('Please login as an intern.', 'danger')
         return redirect(url_for('index'))
-
-    user_id = int(user_id['user_id'])
+    user_id = int(session['user_id'])
     try:
         global resume_df, internship_df
         resume_df, internship_df = fetch_data()
-        logging.info(f"[MATCH DEBUG] Refreshed data: resume_df shape: {resume_df.shape}, internship_df shape: {internship_df.shape})")
+        logging.info(f"[MATCH DEBUG] Refreshed data: resume_df shape: {resume_df.shape}, internship_df shape: {internship_df.shape}")
         
         conn = get_db_connection()
         resume = conn.execute('SELECT * FROM resume_info WHERE user_id = ?', (user_id,)).fetchone()
@@ -654,21 +653,14 @@ def match():
             flash('Please create your resume first!', 'warning')
             return redirect(url_for('create_resume'))
         if 'skills' not in resume or not resume['skills']:
-            logging.warning('User resume missing skills')
-            return redirect(url_for('edit_resume', flash='flash('Please add skills to your resume to match internships!', 'warning')))
+            logging.warning(f"User {user_id} resume missing skills")
+            flash('Please add skills to your resume to match internships!', 'warning')
+            return redirect(url_for('edit_resume'))
         user_skills = preprocess_skills(resume['skills'])
         logging.info(f"[MATCH DEBUG] User {user_id} processed skills: {user_skills}")
-        if not internship_df.empty and 'processed_Required_Skills' in internship_df.columns:
-            logging.info(f"[MATCH DEBUG] internship_df has {len(internship_df)} internships")
-            for idx, internship in internship_df.iterrows():
-                logging.info(f"[MATCH DEBUG] Internship {internship.get('id', 0)} processed required skills: {internship['processed_Required_Skills']}")
-            }
-        else:
-            logging.warning("[MATCH] internship_df empty or missing processed_Required_Skills column")
-            flash('No internships available to match at this time.', 'info')
-            return render_template('match.html', matched_internships=[])
         matched_internships = []
         if not internship_df.empty and 'processed_Required_Skills' in internship_df.columns:
+            logging.info(f"[MATCH DEBUG] internship_df has {len(internship_df)} internships")
             for idx, internship in internship_df.iterrows():
                 similarity = jaccard_similarity(user_skills, internship['processed_Required_Skills'])
                 logging.info(f"[MATCH] Internship {internship.get('id', 0)} similarity: {similarity}")
@@ -684,6 +676,10 @@ def match():
                         'location': internship.get('location', 'N/A'),
                         'similarity_score': round(similarity * 100, 2)
                     })
+        else:
+            logging.warning("[MATCH] internship_df empty or missing processed_Required_Skills column")
+            flash('No internships available to match at this time.', 'info')
+            return render_template('match.html', matched_internships=[])
         logging.info(f"[MATCH] Found {len(matched_internships)} matched internships for user {user_id}")
         matched_internships = sorted(matched_internships, key=lambda x: x['similarity_score'], reverse=True)
         if not matched_internships:
