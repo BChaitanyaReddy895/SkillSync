@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hiring Analytics</title>
+    <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header>
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="SkillSync Logo">
+        <nav>
+            <a href="{{ url_for('recruiter_dashboard') }}">Dashboard</a>
+            <a href="{{ url_for('logout') }}">Logout</a>
+        </nav>
+    </header>
+    <div class="container">
+        <h1>Hiring Analytics for Internship ID {{ internship_id }}</h1>
+        <canvas id="analyticsChart" data-analytics='{{ analytics_data | tojson }}'></canvas>
+        <h2>Candidate Details</h2>
+        {% for data in analytics_data %}
+            <div class="card">
+                <p><strong>Name:</strong> {{ data.name }}</p>
+                <p><strong>Acceptance Likelihood:</strong> {{ data.acceptance_prob | round(2) }}%</p>
+            </div>
+        {% endfor %}
+    </div>
+    <script src="{{ url_for('static', filename='js/chart.js') }}"></script>
+</body>
+</html>
