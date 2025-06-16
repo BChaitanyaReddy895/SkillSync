@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Progress Tracker</title>
+    <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header>
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="SkillSync Logo">
+        <nav>
+            <a href="{{ url_for('intern_dashboard') }}">Dashboard</a>
+            <a href="{{ url_for('logout') }}">Logout</a>
+        </nav>
+    </header>
+    <div class="container">
+        <h1>Your Progress</h1>
+        <p><strong>Points:</strong> {{ points }}</p>
+        <div class="progress-bar">
+            <div class="progress-bar-fill" style="width: {{ points // 10 }}%;"></div>
+        </div>
+        <h2>Badges</h2>
+        {% for badge in badges %}
+            <span class="badge">{{ badge }}</span>
+        {% endfor %}
+    </div>
+</body>
+</html>
