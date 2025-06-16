@@ -1,0 +1,144 @@
+body {
+    font-family: 'Roboto', Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background: linear-gradient(120deg, #e0f7fa 0%, #f4f4f9 100%);
+    min-height: 100vh;
+}
+
+.container {
+    max-width: 800px;
+    margin: 20px auto;
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+h1, h2 {
+    color: #00796b;
+    text-align: center;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    color: #333;
+    font-weight: bold;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea,
+select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 16px;
+}
+
+.button {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    background-color: #00796b;
+    color: white;
+    text-align: center;
+    border-radius: 5px;
+    font-size: 16px;
+    border: none;
+    cursor: pointer;
+}
+
+.button:hover {
+    background-color: #005a4f;
+}
+
+.flash-messages .success {
+    color: #2e7d32;
+    background: #e8f5e9;
+    padding: 8px 12px;
+    border-radius: 4px;
+}
+
+.flash-messages .danger {
+    color: #c62828;
+    background: #ffebee;
+    padding: 8px 12px;
+    border-radius: 4px;
+}
+
+header {
+    background-color: #00796b;
+    color: white;
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    position: fixed;
+    top: 0;
+    width: 100%;
+}
+
+nav a {
+    color: white;
+    text-decoration: none;
+    padding: 8px 16px;
+    border: 1px solid white;
+    border-radius: 5px;
+}
+
+nav a:hover {
+    background-color: white;
+    color: #00796b;
+}
+
+.card {
+    background: #f4f4f9;
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+}
+
+.progress-bar {
+    background-color: #e0f7fa;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    background-color: #00796b;
+    height: 20px;
+    transition: width 0.3s ease;
+}
+
+.badge {
+    display: inline-block;
+    background-color: #2e7d32;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 15px;
+    margin: 5px;
+}
+
+.chat-container {
+    border: 1px solid #ccc;
+    padding: 10px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.rating {
+    display: inline-block;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.rating .star.filled {
+    color: #ffd700;
+}
