@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Peer Review</title>
+    <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header>
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="SkillSync Logo">
+        <nav>
+            <a href="{{ url_for('intern_dashboard') }}">Dashboard</a>
+            <a href="{{ url_for('logout') }}">Logout</a>
+        </nav>
+    </header>
+    <div class="container">
+        <h1>Peer Review</h1>
+        <h2>Submit Feedback</h2>
+        <form method="POST">
+            <div class="form-group">
+                <label for="resume_id">Select Resume</label>
+                <select id="resume_id" name="resume_id" required>
+                    {% for resume in resumes %}
+                        <option value="{{ resume.resume_id }}">{{ resume.name }}'s Resume</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="feedback">Feedback</label>
+                <textarea id="feedback" name="feedback" rows="4" required></textarea>
+            </div>
+            <button type="submit" class="button">Submit Feedback</button>
+        </form>
+        <h2>Your Received Feedback</h2>
+        {% for review in reviews %}
+            <div class="card">
+                <p><strong>Reviewer:</strong> {{ review.name }}</p>
+                <p><strong>Feedback:</strong> {{ review.feedback }}</p>
+            </div>
+        {% endfor %}
+    </div>
+</body>
+</html>
