@@ -27,6 +27,8 @@
             {% endif %}
         {% endwith %}
         <div class="dashboard-actions">
+            <a href="{{ url_for('edit_profile') }}" class="button">Edit Profile</a>
+            <a href="{{ url_for('upload_resume') }}" class="button">Upload Resume</a>
             <a href="{{ url_for('create_resume') }}" class="button">Create ATS-Friendly Resume</a>
             <a href="{{ url_for('edit_resume') }}" class="button">Edit Resume</a>
             <a href="{{ url_for('resume_enhance') }}" class="button">Enhance Resume</a>
