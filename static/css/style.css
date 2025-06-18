@@ -1,144 +1,254 @@
-body {
-    font-family: 'Roboto', Arial, sans-serif;
+/* Reset and base styles */
+* {
     margin: 0;
     padding: 0;
-    background: linear-gradient(120deg, #e0f7fa 0%, #f4f4f9 100%);
-    min-height: 100vh;
+    box-sizing: border-box;
 }
 
-.container {
-    max-width: 800px;
-    margin: 20px auto;
-    background: white;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+html {
+    scroll-behavior: smooth;
 }
 
-h1, h2 {
-    color: #00796b;
-    text-align: center;
-}
-
-.form-group {
-    margin-bottom: 15px;
-}
-
-label {
-    display: block;
-    margin-bottom: 5px;
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f9;
     color: #333;
-    font-weight: bold;
 }
 
-input[type="text"],
-input[type="email"],
-input[type="password"],
-textarea,
-select {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    font-size: 16px;
-}
-
-.button {
-    display: block;
-    width: 100%;
-    padding: 10px;
+/* Header and Navigation */
+header {
     background-color: #00796b;
     color: white;
-    text-align: center;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+.logo {
+    height: 50px;
+}
+
+.nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+}
+
+.nav-link, .dropdown-button {
+    color: white;
+    text-decoration: none;
+    font-size: 14px;
+    padding: 6px 12px;
+    border: 1px solid white;
     border-radius: 5px;
-    font-size: 16px;
-    border: none;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    background-color: transparent;
     cursor: pointer;
+}
+
+.nav-link:hover, .dropdown-button:hover {
+    background-color: white;
+    color: #00796b;
+}
+
+.nav-welcome {
+    font-size: 14px;
+    margin-right: 10px;
+}
+
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: white;
+    min-width: 140px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index: 1000;
+    border-radius: 5px;
+    right: 0;
+    top: 100%;
+}
+
+.dropdown:hover .dropdown-content, .dropdown.active .dropdown-content {
+    display: block;
+}
+
+.dropdown-content a {
+    color: #00796b;
+    padding: 10px 12px;
+    text-decoration: none;
+    display: block;
+    font-size: 13px;
+    text-align: left;
+}
+
+.dropdown-content a:hover {
+    background-color: #e0f2e9;
+    color: #005a4f;
+}
+
+/* Sections */
+.hero, .about, .features, .contact {
+    padding: 50px 20px;
+    text-align: center;
+}
+
+.hero {
+    background-color: #e0f7fa;
+}
+
+.hero h1 {
+    font-size: 36px;
+    color: #00796b;
+    margin-bottom: 20px;
+}
+
+.hero p {
+    font-size: 18px;
+    color: #555;
+}
+
+.about h2, .features h2, .contact h2 {
+    font-size: 28px;
+    color: #00796b;
+    margin-bottom: 20px;
+}
+
+.about p, .features p, .contact p {
+    font-size: 16px;
+    color: #555;
+    line-height: 1.6;
+    margin: 10px 0;
+}
+
+.features ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+.features li {
+    font-size: 16px;
+    color: #555;
+    margin: 10px 0;
+    padding: 10px;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+}
+
+.features li:hover {
+    background-color: #e0f2e9;
+}
+
+/* Button styles for dashboards */
+.button {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #00796b;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    margin: 5px;
+    transition: background-color 0.3s ease;
 }
 
 .button:hover {
     background-color: #005a4f;
 }
 
+/* Flash messages */
 .flash-messages .success {
-    color: #2e7d32;
-    background: #e8f5e9;
-    padding: 8px 12px;
-    border-radius: 4px;
+    background-color: #e0f2e9;
+    color: #00796b;
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 5px;
 }
 
 .flash-messages .danger {
+    background-color: #ffebee;
     color: #c62828;
-    background: #ffebee;
-    padding: 8px 12px;
-    border-radius: 4px;
-}
-
-header {
-    background-color: #00796b;
-    color: white;
-    padding: 10px 20px;
-    display: flex;
-    justify-content: space-between;
-    position: fixed;
-    top: 0;
-    width: 100%;
-}
-
-nav a {
-    color: white;
-    text-decoration: none;
-    padding: 8px 16px;
-    border: 1px solid white;
-    border-radius: 5px;
-}
-
-nav a:hover {
-    background-color: white;
-    color: #00796b;
-}
-
-.card {
-    background: #f4f4f9;
-    padding: 15px;
-    margin-bottom: 10px;
-    border-radius: 5px;
-}
-
-.progress-bar {
-    background-color: #e0f7fa;
-    border-radius: 5px;
-    overflow: hidden;
-}
-
-.progress-bar-fill {
-    background-color: #00796b;
-    height: 20px;
-    transition: width 0.3s ease;
-}
-
-.badge {
-    display: inline-block;
-    background-color: #2e7d32;
-    color: white;
-    padding: 5px 10px;
-    border-radius: 15px;
-    margin: 5px;
-}
-
-.chat-container {
-    border: 1px solid #ccc;
     padding: 10px;
-    max-height: 300px;
-    overflow-y: auto;
+    margin: 10px 0;
+    border-radius: 5px;
 }
 
-.rating {
-    display: inline-block;
-    font-size: 20px;
-    cursor: pointer;
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    header {
+        flex-direction: column;
+        padding: 10px;
+    }
+
+    .nav {
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+        align-items: stretch;
+    }
+
+    .nav-link, .dropdown-button {
+        font-size: 12px;
+        padding: 5px 10px;
+        width: 100%;
+        text-align: center;
+    }
+
+    .dropdown-content {
+        min-width: 100%;
+        right: 0;
+        left: 0;
+    }
+
+    .dropdown-content a {
+        font-size: 12px;
+        padding: 8px 10px;
+    }
+
+    .hero h1 {
+        font-size: 28px;
+    }
+
+    .hero p {
+        font-size: 16px;
+    }
+
+    .about h2, .features h2, .contact h2 {
+        font-size: 24px;
+    }
+
+    .about p, .features p, .contact p, .features li {
+        font-size: 14px;
+    }
 }
 
-.rating .star.filled {
-    color: #ffd700;
+@media (max-width: 480px) {
+    .logo {
+        height: 40px;
+    }
+
+    .hero h1 {
+        font-size: 24px;
+    }
+
+    .hero p {
+        font-size: 14px;
+    }
+
+    .about h2, .features h2, .contact h2 {
+        font-size: 20px;
+    }
+
+    .about p, .features p, .contact p, .features li {
+        font-size: 12px;
+    }
 }
