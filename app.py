@@ -25,10 +25,6 @@ from collections import Counter
 # Configure logging
 log_dir = "/tmp/logs"
 os.makedirs(log_dir, exist_ok=True)
-try:
-    os.chmod(log_dir, 0o777)
-except PermissionError as e:
-    logging.warning(f"Failed to set permissions on {log_dir}: {str(e)}")
 logging.basicConfig(
     filename=os.path.join(log_dir, "app.log"),
     level=logging.INFO,
@@ -39,10 +35,6 @@ logging.getLogger('werkzeug').setLevel(logging.WARNING)
 # Configuration
 UPLOAD_FOLDER = 'static/uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-try:
-    os.chmod(UPLOAD_FOLDER, 0o777)
-except PermissionError as e:
-    logging.warning(f"Failed to set permissions on {UPLOAD_FOLDER}: {str(e)}")
 ALLOWED_EXTENSIONS = {'pdf'}
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', secrets.token_hex(32))
@@ -52,10 +44,6 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # NLTK data path
 nltk_data_dir = "/tmp/nltk_data"
 os.makedirs(nltk_data_dir, exist_ok=True)
-try:
-    os.chmod(nltk_data_dir, 0o777)
-except PermissionError as e:
-    logging.warning(f"Failed to set permissions on {nltk_data_dir}: {str(e)}")
 nltk.download('punkt', download_dir=nltk_data_dir)
 nltk.download('stopwords', download_dir=nltk_data_dir)
 nltk.download('wordnet', download_dir=nltk_data_dir)
