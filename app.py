@@ -1216,7 +1216,7 @@ def verify_credential():
     return render_template('verify_credential.html')
 
 @app.route('/issue_credential', methods=['GET', 'POST'], strict_slashes=False)
-@role_required('admin'||'recruiter')
+@role_required('admin')
 def issue_credential():
     if request.method == 'POST':
         user_id = request.form['user_id']
