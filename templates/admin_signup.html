@@ -3,67 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Sign Up - SkillSync</title>
-    <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet">
+    <title>Admin Signup - SkillSync</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <header>
-        <img src="{{ url_for('static', filename='logo.png') }}" alt="SkillSync Logo">
-        <nav>
-            <a href="{{ url_for('index') }}">Back to Home</a>
-        </nav>
-    </header>
-    <div class="container">
-        <h1>Admin Sign Up</h1>
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="flash-messages">
-                    {% for category, message in messages %}
-                        <div class="{{ category }}">{{ message }}</div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
-        <form id="signup-form" action="{{ url_for('admin_signup') }}" method="POST">
-            <label for="name">Name:</label>
-            <input type="text" id="name" name="name" value="{{ request.form.get('name', '') }}" required>
-
-            <label for="email">Email:</label>
-            <input type="email" id="email" name="email" value="{{ request.form.get('email', '') }}" required>
-
-            <label for="password">Password:</label>
-            <input type="password" id="password" name="password" required>
-            <span id="password-error" class="error-message"></span>
-
-            <label for="confirm_password">Confirm Password:</label>
-            <input type="password" id="confirm_password" name="confirm_password" required>
-
-            <label for="secret_code">Secret Code:</label>
-            <input type="text" id="secret_code" name="secret_code" required>
-            <span id="secret-code-error" class="error-message"></span>
-
-            <button type="submit">Sign Up</button>
+    <div class="form-container">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="SkillSync Logo" class="logo">
+        <h2>Admin Signup</h2>
+        <form method="POST" action="{{ url_for('admin_signup') }}">
+            <input type="text" name="name" class="input-field" placeholder="Name" required>
+            <input type="email" name="email" class="input-field" placeholder="Email" required>
+            <input type="password" name="password" class="input-field" placeholder="Password" required>
+            <input type="text" name="secret_code" class="input-field" placeholder="Secret Code" required>
+            <button type="submit" class="button">Sign Up</button>
         </form>
+        <p>Already have an account? <a href="{{ url_for('admin_login') }}">Login</a></p>
+        <div class="flash-messages">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% for category, message in messages %}
+                    <div class="{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endwith %}
+        </div>
     </div>
-    <script>
-        document.getElementById('signup-form').addEventListener('submit', function(event) {
-            let password = document.getElementById('password').value;
-            let confirmPassword = document.getElementById('confirm_password').value;
-            let passwordError = document.getElementById('password-error');
-            let isValid = true;
-
-            passwordError.textContent = '';
-
-            if (password !== confirmPassword) {
-                passwordError.textContent = 'Passwords do not match.';
-                isValid = false;
-            }
-
-            if (!isValid) {
-                event.preventDefault();
-            }
-        });
-    </script>
 </body>
 </html>
