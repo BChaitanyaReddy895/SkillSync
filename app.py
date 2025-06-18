@@ -11,18 +11,22 @@ import logging
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import re
-import shutil
 import secrets
-import json
-from web3 import Web3
-import requests
+import hashlib
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.exceptions import InvalidSignature
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
+from functools import wraps
+from collections import Counter
 
 # Configure logging
 log_dir = "/tmp/logs"
 os.makedirs(log_dir, exist_ok=True)
+os.chmod('/tmp', 0o777)
+os.chmod(log_dir, 0o777)
 logging.basicConfig(
     filename=os.path.join(log_dir, "app.log"),
     level=logging.INFO,
@@ -32,6 +36,8 @@ logging.getLogger('werkzeug').setLevel(logging.WARNING)
 
 # Configuration
 UPLOAD_FOLDER = 'static/uploads'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.chmod(UPLOAD_FOLDER, 0o777)
 ALLOWED_EXTENSIONS = {'pdf'}
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', secrets.token_hex(32))
@@ -41,6 +47,7 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # NLTK data path
 nltk_data_dir = "/tmp/nltk_data"
 os.makedirs(nltk_data_dir, exist_ok=True)
+os.chmod(nltk_data_dir, 0o777)
 nltk.download('punkt', download_dir=nltk_data_dir)
 nltk.download('stopwords', download_dir=nltk_data_dir)
 nltk.download('wordnet', download_dir=nltk_data_dir)
@@ -48,15 +55,9 @@ nltk.data.path.append(nltk_data_dir)
 logging.info(f"NLTK data directory: {nltk_data_dir}, writable: {os.access(nltk_data_dir, os.W_OK)}")
 
 # Database configuration
-SOURCE_DB = 'database.db'
 DB_PATH = '/tmp/database.db'
 
-# Copy database
-if not os.path.exists(DB_PATH) and os.path.exists(SOURCE_DB):
-    shutil.copyfile(SOURCE_DB, DB_PATH)
-logging.info(f"Database path: {DB_PATH}, exists: {os.path.exists(DB_PATH)}")
-
-# Public key for signature verification (replace with your public_key.pem content)
+# Public key for signature verification (replace with actual public_key.pem content)
 PUBLIC_KEY_PEM = """-----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2zQcp+kSdpAgcey6Z8aG
 8io1R8X5TpqJNlVOcxCb0cioW5RcPNs9ScfwyewZrAvcyWT0koo6Ir6yPaA2kNz5
@@ -66,13 +67,17 @@ arhfJzpXYnpUv61dAkDh7ENJcOE5UAO87vZSFuL/eDJOSGLjOi7gf/km9fniyoEO
 l28dSBTRhPPPzNvIGnYicQAPO7aBsLpUni2mAbP2aFPFL8a1TvpP32BOnIZASP8i
 YQIDAQAB
 -----END PUBLIC KEY-----
-"""  # TODO: Replace with actual public key
+"""  # TODO: Replace with actual public_key.pem content
 
 # SQLite Connection
 def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        return conn
+    except Exception as e:
+        logging.error(f"Database connection error: {str(e)}")
+        return None
 
 def initialize_database():
     schema = '''
@@ -158,31 +163,35 @@ def initialize_database():
         rating_date TEXT,
         FOREIGN KEY (user_id) REFERENCES users(user_id),
         FOREIGN KEY (internship_id) REFERENCES internship_info(id)
-    
     );
     CREATE TABLE IF NOT EXISTS credentials (
-            credential_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            credential_hash TEXT NOT NULL,
-            signature TEXT NOT NULL,
-            issued_date TEXT,
-            FOREIGN KEY (user_id) REFERENCES users(user_id)
-        );
+        credential_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        credential_hash TEXT NOT NULL,
+        signature TEXT NOT NULL,
+        issued_date TEXT,
+        FOREIGN KEY (user_id) REFERENCES users(user_id)
+    );
     '''
-    conn = sqlite3.connect(DB_PATH)
-    conn.executescript(schema)
-    conn.commit()
-    conn.close()
-    logging.info("Database schema initialized")
+    conn = get_db_connection()
+    if conn:
+        conn.executescript(schema)
+        conn.commit()
+        conn.close()
+        logging.info("Database schema initialized")
 
 def insert_test_data():
     conn = get_db_connection()
+    if not conn:
+        logging.error("Failed to get database connection for test data insertion")
+        return
     existing_user = conn.execute('SELECT COUNT(*) FROM users').fetchone()[0]
     if existing_user > 0:
         logging.info("Test data already exists")
         conn.close()
         return
-    test_data_sql = '''
+    admin_password_hash = generate_password_hash('password')  # Hash for admin@example.com
+    test_data_sql = f'''
     -- Clear existing data
     DELETE FROM applications;
     DELETE FROM internship_info;
@@ -191,21 +200,22 @@ def insert_test_data():
     DELETE FROM user_progress;
     DELETE FROM peer_reviews;
     DELETE FROM internship_ratings;
-    DELETE FROM sqlite_sequence WHERE name IN ('users', 'internship_info', 'applications', 'peer_reviews', 'internship_ratings');
+    DELETE FROM credentials;
+    DELETE FROM sqlite_sequence;
 
     -- Insert Interns (user_id: 1-4)
     INSERT INTO users (user_id, name, email, password, role, skills) VALUES
-    (1, 'Alice Smith', 'alice.smith@example.com', '$pbkdf2-sha256$29000$1RrjXGutlZLy3lvLeW/t3Q$J3Q2X5n7Z9X8Y6W5V4T3R2Q1P0O9N8M7L6K5J4I3H2G1F0E', 'intern', 'python, java, sql, tensorflow'),
-    (2, 'Bob Johnson', 'bob.johnson@example.com', '$pbkdf2-sha256$29000$1RrjXGutlZLy3lvLeW/t3Q$J3Q2X5n7Z9X8Y6W5V4T3R2Q1P0O9N8M7L6K5J4I3H2G1F0E', 'intern', 'javascript, react, node.js'),
-    (3, 'Carol Lee', 'carol.lee@example.com', '$pbkdf2-sha256$29000$1RrjXGutlZLy3lvLeW/t3Q$J3Q2X5n7Z9X8Y6W5V4T3R2Q1P0O9N8M7L6K5J4I3H2G1F0E', 'intern', 'python, django, postgresql'),
-    (4, 'David Brown', 'david.brown@example.com', '$pbkdf2-sha256$29000$1RrjXGutlZLy3lvLeW/t3Q$J3Q2X5n7Z9X8Y6W5V4T3R2Q1P0O9N8M7L6K5J4I3H2G1F0E', 'intern', 'c++, opencv, machine learning');
-    (8, 'Admin User', 'admin@example.com', '$pbkdf2-sha256$29000$1RrjXGutlZLy3lvLeW/t3Q$J3Q2X5n7Z9X8Y6W5V4T3R2Q1P0O9N8M7L6K5J4I3H2G1F0E', 'admin');
+    (1, 'Alice Smith', 'alice.smith@example.com', '{admin_password_hash}', 'intern', 'python, java, sql, tensorflow'),
+    (2, 'Bob Johnson', 'bob.johnson@example.com', '{admin_password_hash}', 'intern', 'javascript, react, node.js'),
+    (3, 'Carol Lee', 'carol.lee@example.com', '{admin_password_hash}', 'intern', 'python, django, postgresql'),
+    (4, 'David Brown', 'david.brown@example.com', '{admin_password_hash}', 'intern', 'c++, opencv, machine learning'),
+    (8, 'Admin User', 'admin@example.com', '{admin_password_hash}', 'admin', NULL);
 
     -- Insert Recruiters (user_id: 5-7)
     INSERT INTO users (user_id, name, email, password, role, organization_name, contact_details, location, website_link) VALUES
-    (5, 'Emma Wilson', 'emma.wilson@techcorp.com', '$pbkdf2-sha256$29000$1RrjXGutlZLy3lvLeW/t3Q$J3Q2X5n7Z9X8Y6W5V4T3R2Q1P0O9N8M7L6K5J4I3H2G1F0E', 'recruiter', 'TechCorp', '+1-800-555-1234', 'San Francisco, CA', 'https://techcorp.com'),
-    (6, 'Frank Taylor', 'frank.taylor@innovatech.com', '$pbkdf2-sha256$29000$1RrjXGutlZLy3lvLeW/t3Q$J3Q2X5n7Z9X8Y6W5V4T3R2Q1P0O9N8M7L6K5J4I3H2G1F0E', 'recruiter', 'Innovatech', '+1-800-555-5678', 'New York, NY', 'https://innovatech.com'),
-    (7, 'Grace Miller', 'grace.miller@datatech.com', '$pbkdf2-sha256$29000$1RrjXGutlZLy3lvLeW/t3Q$J3Q2X5n7Z9X8Y6W5V4T3R2Q1P0O9N8M7L6K5J4I3H2G1F0E', 'recruiter', 'DataTech', '+1-800-555-9012', 'Austin, TX', 'https://datatech.com');
+    (5, 'Emma Wilson', 'emma.wilson@techcorp.com', '{admin_password_hash}', 'recruiter', 'TechCorp', '+1-800-555-1234', 'San Francisco, CA', 'https://techcorp.com'),
+    (6, 'Frank Taylor', 'frank.taylor@innovatech.com', '{admin_password_hash}', 'recruiter', 'Innovatech', '+1-800-555-5678', 'New York, NY', 'https://innovatech.com'),
+    (7, 'Grace Miller', 'grace.miller@datatech.com', '{admin_password_hash}', 'recruiter', 'DataTech', '+1-800-555-9012', 'Austin, TX', 'https://datatech.com');
 
     -- Insert Resumes
     INSERT INTO resume_info (user_id, name_of_applicant, email, phone_number, skills, experience, education, certifications, achievements, resume_path, downloaded) VALUES
@@ -261,12 +271,13 @@ if not os.path.exists(DB_PATH):
     insert_test_data()
 else:
     conn = get_db_connection()
-    user_count = conn.execute('SELECT COUNT(*) FROM users').fetchone()[0]
-    conn.close()
-    if user_count == 0:
-        logging.warning("Test data missing, reinitializing")
-        initialize_database()
-        insert_test_data()
+    if conn:
+        user_count = conn.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+        conn.close()
+        if user_count == 0:
+            logging.warning("Test data missing, reinitializing")
+            initialize_database()
+            insert_test_data()
 
 # Global data
 resume_df = pd.DataFrame()
@@ -301,6 +312,8 @@ def fetch_data():
     global resume_df, internship_df, skill_to_index
     try:
         conn = get_db_connection()
+        if not conn:
+            raise Exception("Failed to connect to database")
         resumes = conn.execute('SELECT * FROM resume_info').fetchall()
         internships = conn.execute('SELECT * FROM internship_info').fetchall()
         resume_df = pd.DataFrame([dict(row) for row in resumes])
@@ -342,10 +355,43 @@ def cosine_sim(text1, text2):
     tfidf_matrix = vectorizer.fit_transform([text1, text2])
     return cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
 
+# Role-based access decorator
+def role_required(role):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if 'user_id' not in session or session['role'] != role:
+                flash(f'Please login as a {role}.', 'danger')
+                return redirect(url_for(f'{role}_login'))
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
 # Routes
 @app.route('/', strict_slashes=False)
 def index():
     return render_template('index.html')
+
+@app.route('/admin_login', methods=['GET', 'POST'], strict_slashes=False)
+def admin_login():
+    if request.method == 'POST':
+        email = request.form['email']
+        password = request.form['password']
+        conn = get_db_connection()
+        if not conn:
+            flash('Database error.', 'danger')
+            return render_template('admin_login.html')
+        user = conn.execute('SELECT * FROM users WHERE email = ? AND role = ?', (email, 'admin')).fetchone()
+        conn.close()
+        if user and check_password_hash(user['password'], password):
+            session['user_id'] = user['user_id']
+            session['user_name'] = user['name']
+            session['role'] = 'admin'
+            logging.info(f"Admin login: Email={email}, user_id={user['user_id']}")
+            flash('Login successful!', 'success')
+            return redirect(url_for('issue_credential'))
+        flash('Invalid credentials.', 'danger')
+    return render_template('admin_login.html')
 
 @app.route('/recruiter_login', methods=['GET', 'POST'], strict_slashes=False)
 def recruiter_login():
@@ -353,6 +399,9 @@ def recruiter_login():
         email = request.form['email']
         password = request.form['password']
         conn = get_db_connection()
+        if not conn:
+            flash('Database error.', 'danger')
+            return render_template('recruiter_login.html')
         user = conn.execute('SELECT * FROM users WHERE email = ? AND role = ?', (email, 'recruiter')).fetchone()
         conn.close()
         if user and check_password_hash(user['password'], password):
@@ -372,6 +421,9 @@ def intern_login():
         email = request.form['email']
         password = request.form['password']
         conn = get_db_connection()
+        if not conn:
+            flash('Database error.', 'danger')
+            return render_template('intern_login.html')
         user = conn.execute('SELECT * FROM users WHERE email = ? AND role = ?', (email, 'intern')).fetchone()
         conn.close()
         if user and check_password_hash(user['password'], password):
@@ -392,6 +444,9 @@ def recruiter_signup():
         password = request.form['password']
         company = request.form['company']
         conn = get_db_connection()
+        if not conn:
+            flash('Database error.', 'danger')
+            return render_template('recruiter_signup.html')
         existing = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
         if existing:
             conn.close()
@@ -418,6 +473,9 @@ def intern_signup():
         education = request.form.get('education', '')
         certifications = request.form.get('certifications', '')
         conn = get_db_connection()
+        if not conn:
+            flash('Database error.', 'danger')
+            return render_template('intern_signup.html')
         existing = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
         if existing:
             conn.close()
@@ -435,27 +493,28 @@ def intern_signup():
             flash('Signup successful! Please login.', 'success')
             return redirect(url_for('intern_login'))
     return render_template('intern_signup.html')
+
 @app.route('/admin_signup', methods=['GET', 'POST'], strict_slashes=False)
 def admin_signup():
     if request.method == 'POST':
         name = request.form['name']
         email = request.form['email']
-        password = hash_password(request.form['password'])
+        password = generate_password_hash(request.form['password'])
         secret_code = request.form['secret_code']
-        expected_secret_code = os.getenv('ADMIN_SECRET_CODE', 'default-secret-code')  # Set in Hugging Face Spaces
+        expected_secret_code = os.getenv('ADMIN_SECRET_CODE', 'default-secret-code')
         if secret_code != expected_secret_code:
             flash('Invalid secret code.', 'danger')
             return render_template('admin_signup.html')
         try:
             conn = get_db_connection()
-            if conn is None:
+            if not conn:
                 flash('Database error.', 'danger')
                 return render_template('admin_signup.html')
             conn.execute('INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
                          (name, email, password, 'admin'))
             conn.commit()
             flash('Admin sign up successful! Please login.', 'success')
-            return redirect(url_for('index'))
+            return redirect(url_for('admin_login'))
         except sqlite3.IntegrityError:
             flash('Email already registered.', 'danger')
         except Exception as e:
@@ -467,26 +526,28 @@ def admin_signup():
     return render_template('admin_signup.html')
 
 @app.route('/recruiter_dashboard', strict_slashes=False)
+@role_required('recruiter')
 def recruiter_dashboard():
-    if 'user_id' not in session or session['role'] != 'recruiter':
-        flash('Please login as a recruiter.', 'danger')
-        return redirect(url_for('recruiter_login'))
     user_id = session['user_id']
     conn = get_db_connection()
+    if not conn:
+        flash('Database error.', 'danger')
+        return redirect(url_for('recruiter_login'))
     recruiter = conn.execute('SELECT * FROM users WHERE user_id = ?', (user_id,)).fetchone()
     internships = conn.execute('SELECT * FROM internship_info WHERE user_id = ?', (user_id,)).fetchall()
     conn.close()
     return render_template('recruiter_dashboard.html', recruiter=recruiter, internships=internships, user_name=session['user_name'])
 
 @app.route('/intern_dashboard', strict_slashes=False)
+@role_required('intern')
 def intern_dashboard():
-    if 'user_id' not in session or session['role'] != 'intern':
-        flash('Please login as an intern.', 'danger')
-        return redirect(url_for('intern_login'))
     user_id = session['user_id']
     global resume_df, internship_df
     resume_df, internship_df = fetch_data()
     conn = get_db_connection()
+    if not conn:
+        flash('Database error.', 'danger')
+        return redirect(url_for('intern_login'))
     intern = conn.execute('SELECT * FROM users WHERE user_id = ?', (user_id,)).fetchone()
     resume = conn.execute('SELECT * FROM resume_info WHERE user_id = ?', (user_id,)).fetchone()
     applications = conn.execute('SELECT * FROM applications WHERE user_id = ?', (user_id,)).fetchall()
@@ -518,12 +579,13 @@ def intern_dashboard():
     return render_template('intern_dashboard.html', user_name=session['user_name'], internships=internships, applied_internship_ids=applied_internship_ids, total_points=total_points, level=level)
 
 @app.route('/register_internship', methods=['GET', 'POST'], strict_slashes=False)
+@role_required('recruiter')
 def register_internship():
-    if 'user_id' not in session or session['role'] != 'recruiter':
-        flash('Please login as a recruiter.', 'danger')
-        return redirect(url_for('recruiter_login'))
     user_id = session['user_id']
     conn = get_db_connection()
+    if not conn:
+        flash('Database error.', 'danger')
+        return redirect(url_for('recruiter_login'))
     recruiter = conn.execute('SELECT * FROM users WHERE user_id = ?', (user_id,)).fetchone()
     if request.method == 'POST':
         role = request.form['role']
@@ -557,19 +619,21 @@ def register_internship():
     return render_template('register_internship.html', recruiter=recruiter)
 
 @app.route('/upload_resume', methods=['GET', 'POST'], strict_slashes=False)
+@role_required('intern')
 def upload_resume():
-    if 'user_id' not in session or session['role'] != 'intern':
-        flash('Please login as an intern.', 'danger')
-        return redirect(url_for('intern_login'))
     if request.method == 'POST':
         file = request.files['resume']
         skills = request.form.get('skills')
         if file and file.filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS:
             user_id = session['user_id']
+            os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
             filename = f"{user_id}_resume.pdf"
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(file_path)
             conn = get_db_connection()
+            if not conn:
+                flash('Database error.', 'danger')
+                return render_template('upload_resume.html')
             existing_resume = conn.execute('SELECT * FROM resume_info WHERE user_id = ?', (user_id,)).fetchone()
             if existing_resume:
                 conn.execute('UPDATE resume_info SET resume_path = ?, skills = ? WHERE user_id = ?', (file_path, skills, user_id))
@@ -588,10 +652,8 @@ def upload_resume():
     return render_template('upload_resume.html')
 
 @app.route('/create_resume', methods=['GET', 'POST'], strict_slashes=False)
+@role_required('intern')
 def create_resume():
-    if 'user_id' not in session or session['role'] != 'intern':
-        flash('Please login as an intern.', 'danger')
-        return redirect(url_for('intern_login'))
     if request.method == 'POST':
         user_id = session['user_id']
         name = request.form['name']
@@ -603,6 +665,9 @@ def create_resume():
         certifications = request.form.get('certifications')
         achievements = request.form.get('achievements')
         conn = get_db_connection()
+        if not conn:
+            flash('Database error.', 'danger')
+            return render_template('create_resume.html')
         existing_resume = conn.execute('SELECT * FROM resume_info WHERE user_id = ?', (user_id,)).fetchone()
         if existing_resume:
             conn.execute('''
@@ -629,12 +694,13 @@ def create_resume():
     return render_template('create_resume.html')
 
 @app.route('/edit_resume', methods=['GET', 'POST'], strict_slashes=False)
+@role_required('intern')
 def edit_resume():
-    if 'user_id' not in session or session['role'] != 'intern':
-        flash('Please login as an intern.', 'danger')
-        return redirect(url_for('intern_login'))
     user_id = session['user_id']
     conn = get_db_connection()
+    if not conn:
+        flash('Database error.', 'danger')
+        return redirect(url_for('intern_login'))
     resume = conn.execute('SELECT * FROM resume_info WHERE user_id = ?', (user_id,)).fetchone()
     if not resume:
         conn.close()
@@ -665,12 +731,13 @@ def edit_resume():
     return render_template('edit_resume.html', resume=resume)
 
 @app.route('/resume_enhance', methods=['GET', 'POST'], strict_slashes=False)
+@role_required('intern')
 def resume_enhance():
-    if 'user_id' not in session or session['role'] != 'intern':
-        flash('Please login as an intern.', 'danger')
-        return redirect(url_for('intern_login'))
     user_id = session['user_id']
     conn = get_db_connection()
+    if not conn:
+        flash('Database error.', 'danger')
+        return redirect(url_for('intern_login'))
     resume = conn.execute('SELECT * FROM resume_info WHERE user_id = ?', (user_id,)).fetchone()
     if not resume:
         conn.close()
@@ -697,12 +764,13 @@ def resume_enhance():
     return render_template('resume_enhance.html', resume=resume)
 
 @app.route('/skill_gap', strict_slashes=False)
+@role_required('intern')
 def skill_gap():
-    if 'user_id' not in session or session['role'] != 'intern':
-        flash('Please login as an intern.', 'danger')
-        return redirect(url_for('intern_login'))
     user_id = session['user_id']
     conn = get_db_connection()
+    if not conn:
+        flash('Database error.', 'danger')
+        return redirect(url_for('intern_login'))
     resume = conn.execute('SELECT * FROM resume_info WHERE user_id = ?', (user_id,)).fetchone()
     if not resume:
         conn.close()
@@ -729,15 +797,16 @@ def skill_gap():
     return render_template('skill_gap.html', skill_gaps=skill_gaps)
 
 @app.route('/voice_command', methods=['POST'], strict_slashes=False)
+@role_required('intern')
 def voice_command():
-    if 'user_id' not in session or session['role'] != 'intern':
-        return jsonify({'error': 'Please login as an intern.'}), 401
     command = request.json.get('command', '').lower()
     if 'apply to' in command:
         match = re.search(r'internship (\d+)', command)
         if match:
             internship_id = int(match.group(1))
             conn = get_db_connection()
+            if not conn:
+                return jsonify({'error': 'Database error.'}), 500
             internship = conn.execute('SELECT * FROM internship_info WHERE id = ?', (internship_id,)).fetchone()
             if internship:
                 existing_application = conn.execute('SELECT * FROM applications WHERE user_id = ? AND internship_id = ?', (session['user_id'], internship_id)).fetchone()
@@ -756,12 +825,13 @@ def voice_command():
     return jsonify({'error': 'Command not recognized.'})
 
 @app.route('/analytics/<int:internship_id>', strict_slashes=False)
+@role_required('recruiter')
 def analytics(internship_id):
-    if 'user_id' not in session or session['role'] != 'recruiter':
-        flash('Please login as a recruiter.', 'danger')
-        return redirect(url_for('recruiter_login'))
     user_id = session['user_id']
     conn = get_db_connection()
+    if not conn:
+        flash('Database error.', 'danger')
+        return redirect(url_for('recruiter_dashboard'))
     internship = conn.execute('SELECT * FROM internship_info WHERE id = ? AND user_id = ?', (internship_id, user_id)).fetchone()
     if not internship:
         conn.close()
@@ -778,24 +848,27 @@ def analytics(internship_id):
         for skill in skills:
             skill_counts[skill] = skill_counts.get(skill, 0) + 1
     top_skills = sorted(skill_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+    application_trend = [
+        {'date': date, 'count': count}
+        for date, count in Counter(app['applied_at'][:10] for app in applications).items()
+    ]
     analytics_data = {
         'total_applicants': len(applications),
         'avg_rating': round(avg_rating, 2),
         'top_skills': top_skills,
-        'application_trend': [
-            {'date': app['applied_at'][:10], 'count': 1} for app in applications
-        ]
+        'application_trend': application_trend
     }
     conn.close()
     return render_template('analytics.html', internship=internship, analytics_data=analytics_data)
 
 @app.route('/progress', strict_slashes=False)
+@role_required('intern')
 def progress():
-    if 'user_id' not in session or session['role'] != 'intern':
-        flash('Please login as an intern.', 'danger')
-        return redirect(url_for('intern_login'))
     user_id = session['user_id']
     conn = get_db_connection()
+    if not conn:
+        flash('Database error.', 'danger')
+        return redirect(url_for('intern_login'))
     progress = conn.execute('SELECT * FROM user_progress WHERE user_id = ?', (user_id,)).fetchall()
     total_points = sum(p['points'] for p in progress)
     level = total_points // 100
@@ -807,10 +880,8 @@ def progress():
     return render_template('progress.html', progress=progress, total_points=total_points, level=level, achievements=achievements)
 
 @app.route('/interview_prep', strict_slashes=False)
+@role_required('intern')
 def interview_prep():
-    if 'user_id' not in session or session['role'] != 'intern':
-        flash('Please login as an intern.', 'danger')
-        return redirect(url_for('intern_login'))
     questions = [
         {'id': 1, 'question': 'Tell me about yourself.', 'category': 'General'},
         {'id': 2, 'question': 'What are your strengths?', 'category': 'General'},
@@ -819,12 +890,13 @@ def interview_prep():
     return render_template('interview_prep.html', questions=questions)
 
 @app.route('/peer_review', methods=['GET', 'POST'], strict_slashes=False)
+@role_required('intern')
 def peer_review():
-    if 'user_id' not in session or session['role'] != 'intern':
-        flash('Please login as an intern.', 'danger')
-        return redirect(url_for('intern_login'))
     user_id = session['user_id']
     conn = get_db_connection()
+    if not conn:
+        flash('Database error.', 'danger')
+        return redirect(url_for('intern_login'))
     resume = conn.execute('SELECT * FROM resume_info WHERE user_id = ?', (user_id,)).fetchone()
     if not resume:
         conn.close()
@@ -845,16 +917,16 @@ def peer_review():
     conn.close()
     return render_template('peer_review.html', resume=resume, reviews=reviews, other_resumes=other_resumes)
 
-
 @app.route('/match', strict_slashes=False)
+@role_required('intern')
 def match():
-    if 'user_id' not in session or session['role'] != 'intern':
-        flash('Please login as an intern.', 'danger')
-        return redirect(url_for('intern_login'))
     user_id = session['user_id']
     global resume_df, internship_df
     resume_df, internship_df = fetch_data()
     conn = get_db_connection()
+    if not conn:
+        flash('Database error.', 'danger')
+        return redirect(url_for('intern_login'))
     resume = conn.execute('SELECT * FROM resume_info WHERE user_id = ?', (user_id,)).fetchone()
     conn.close()
     if not resume:
@@ -880,14 +952,15 @@ def match():
     return render_template('match.html', matched_internships=matched_internships)
 
 @app.route('/top_matched_applicants/<int:internship_id>', strict_slashes=False)
+@role_required('recruiter')
 def top_matched_applicants(internship_id):
-    if 'user_id' not in session or session['role'] != 'recruiter':
-        flash('Please login as a recruiter.', 'danger')
-        return redirect(url_for('recruiter_login'))
     user_id = session['user_id']
     global resume_df, internship_df
     resume_df, internship_df = fetch_data()
     conn = get_db_connection()
+    if not conn:
+        flash('Database error.', 'danger')
+        return redirect(url_for('recruiter_dashboard'))
     internship = conn.execute('SELECT * FROM internship_info WHERE id = ? AND user_id = ?', (internship_id, user_id)).fetchone()
     if not internship:
         conn.close()
@@ -913,10 +986,8 @@ def top_matched_applicants(internship_id):
     return render_template('top_matched_applicants.html', matched_applicants=matched_applicants, internship_title=internship_title, user_name=session['user_name'])
 
 @app.route('/download_resume/<path:resume_path>', strict_slashes=False)
+@role_required('recruiter')
 def download_resume(resume_path):
-    if 'user_id' not in session or session['role'] != 'recruiter':
-        flash('Please login as a recruiter.', 'danger')
-        return redirect(url_for('recruiter_login'))
     try:
         return send_file(resume_path, as_attachment=True)
     except FileNotFoundError:
@@ -924,12 +995,13 @@ def download_resume(resume_path):
         return redirect(url_for('recruiter_dashboard'))
 
 @app.route('/apply_internship/<int:internship_id>', methods=['POST'], strict_slashes=False)
+@role_required('intern')
 def apply_internship(internship_id):
-    if 'user_id' not in session or session['role'] != 'intern':
-        flash('Please login as an intern!', 'danger')
-        return redirect(url_for('intern_login'))
     user_id = session['user_id']
     conn = get_db_connection()
+    if not conn:
+        flash('Database error.', 'danger')
+        return redirect(url_for('intern_dashboard'))
     internship = conn.execute('SELECT * FROM internship_info WHERE id = ?', (internship_id,)).fetchone()
     if not internship:
         conn.close()
@@ -950,12 +1022,13 @@ def apply_internship(internship_id):
     return redirect(url_for('intern_dashboard'))
 
 @app.route('/applied_internships', strict_slashes=False)
+@role_required('intern')
 def applied_internships():
-    if 'user_id' not in session or session['role'] != 'intern':
-        flash('Please login as an intern!', 'danger')
-        return redirect(url_for('intern_login'))
     user_id = session['user_id']
     conn = get_db_connection()
+    if not conn:
+        flash('Database error.', 'danger')
+        return redirect(url_for('intern_login'))
     query = '''
     SELECT i.*, a.applied_at
     FROM applications a
@@ -978,12 +1051,13 @@ def applied_internships():
     return render_template('applied_internships.html', applied_internships=applied_internships_list, user_name=session['user_name'])
 
 @app.route('/applied_applicants', strict_slashes=False)
+@role_required('recruiter')
 def applied_applicants():
-    if 'user_id' not in session or session['role'] != 'recruiter':
-        flash('Please login as a recruiter!', 'danger')
-        return redirect(url_for('recruiter_login'))
     user_id = session['user_id']
     conn = get_db_connection()
+    if not conn:
+        flash('Database error.', 'danger')
+        return redirect(url_for('recruiter_login'))
     query = '''
     SELECT r.name_of_applicant, u.email, i.role, a.applied_at, r.resume_path
     FROM applications a
@@ -1007,12 +1081,13 @@ def applied_applicants():
     return render_template('applied_applicants.html', applicants=applicants, internship=None, user_name=session['user_name'])
 
 @app.route('/applied_applicants/<int:internship_id>', strict_slashes=False)
+@role_required('recruiter')
 def applied_applicants_specific(internship_id):
-    if 'user_id' not in session or session['role'] != 'recruiter':
-        flash('Please login as a recruiter!', 'danger')
-        return redirect(url_for('recruiter_login'))
     user_id = session['user_id']
     conn = get_db_connection()
+    if not conn:
+        flash('Database error.', 'danger')
+        return redirect(url_for('recruiter_login'))
     internship = conn.execute('SELECT * FROM internship_info WHERE id = ? AND user_id = ?', (internship_id, user_id)).fetchone()
     if not internship:
         conn.close()
@@ -1048,6 +1123,9 @@ def edit_profile():
         return redirect(url_for('intern_login' if session.get('role') == 'intern' else 'recruiter_login'))
     user_id = session['user_id']
     conn = get_db_connection()
+    if not conn:
+        flash('Database error.', 'danger')
+        return render_template('edit_profile.html', user=None)
     user = conn.execute('SELECT * FROM users WHERE user_id = ?', (user_id,)).fetchone()
     if request.method == 'POST':
         name = request.form['name']
@@ -1072,12 +1150,13 @@ def edit_profile():
     return render_template('edit_profile.html', user=user)
 
 @app.route('/edit_organization_profile', methods=['GET', 'POST'], strict_slashes=False)
+@role_required('recruiter')
 def edit_organization_profile():
-    if 'user_id' not in session or session['role'] != 'recruiter':
-        flash('Please login as a recruiter!', 'danger')
-        return redirect(url_for('recruiter_login'))
     user_id = session['user_id']
     conn = get_db_connection()
+    if not conn:
+        flash('Database error.', 'danger')
+        return redirect(url_for('recruiter_login'))
     user = conn.execute('SELECT * FROM users WHERE user_id = ?', (user_id,)).fetchone()
     if request.method == 'POST':
         organization_name = request.form['organization_name'].strip()
@@ -1103,12 +1182,6 @@ def logout():
     flash('You have been logged out.', 'success')
     return redirect(url_for('index'))
 
-@app.errorhandler(Exception)
-def handle_exception(e):
-    import traceback
-    error_message = f"Exception: {str(e)}\n{traceback.format_exc()}"
-    logging.error(error_message)
-    return render_template('500.html', error_message=str(e)), 500
 @app.route('/verify_credential', methods=['GET', 'POST'], strict_slashes=False)
 def verify_credential():
     if 'user_id' not in session:
@@ -1118,11 +1191,8 @@ def verify_credential():
         credential_hash = request.form['credential_hash']
         signature_hex = request.form['signature']
         try:
-            # Load public key
             public_key = serialization.load_pem_public_key(PUBLIC_KEY_PEM.encode())
-            # Convert hex signature to bytes
             signature = bytes.fromhex(signature_hex)
-            # Verify signature
             public_key.verify(
                 signature,
                 credential_hash.encode(),
@@ -1132,9 +1202,8 @@ def verify_credential():
                 ),
                 hashes.SHA256()
             )
-            # Check if credential exists in database
             conn = get_db_connection()
-            if conn is None:
+            if not conn:
                 flash('Database error.', 'danger')
                 return render_template('verify_credential.html')
             credential = conn.execute('SELECT * FROM credentials WHERE credential_hash = ?', (credential_hash,)).fetchone()
@@ -1151,17 +1220,30 @@ def verify_credential():
     return render_template('verify_credential.html')
 
 @app.route('/issue_credential', methods=['GET', 'POST'], strict_slashes=False)
+@role_required('admin')
 def issue_credential():
-    if 'user_id' not in session or session.get('role') != 'admin':
-        flash('Admin access required.', 'danger')
-        return redirect(url_for('index'))
     if request.method == 'POST':
         user_id = request.form['user_id']
-        credential_details = request.form['credential_details']
+        credential_details = request.form['credential_details'].strip()
+        if not credential_details:
+            flash('Credential details cannot be empty.', 'danger')
+            return render_template('issue_credential.html')
         try:
-            # Generate credential hash
+            user_id = int(user_id)
+            conn = get_db_connection()
+            if not conn:
+                flash('Database error.', 'danger')
+                return render_template('issue_credential.html')
+            user = conn.execute('SELECT * FROM users WHERE user_id = ?', (user_id,)).fetchone()
+            conn.close()
+            if not user:
+                flash('Invalid user ID.', 'danger')
+                return render_template('issue_credential.html')
+        except ValueError:
+            flash('User ID must be a number.', 'danger')
+            return render_template('issue_credential.html')
+        try:
             credential_hash = hashlib.sha256(credential_details.encode()).hexdigest()
-            # Sign with private key (loaded from env)
             private_key_pem = os.getenv('PRIVATE_KEY_PEM')
             if not private_key_pem:
                 flash('Private key not configured.', 'danger')
@@ -1176,9 +1258,8 @@ def issue_credential():
                 hashes.SHA256()
             )
             signature_hex = signature.hex()
-            # Store in database
             conn = get_db_connection()
-            if conn is None:
+            if not conn:
                 flash('Database error.', 'danger')
                 return render_template('issue_credential.html')
             conn.execute('INSERT INTO credentials (user_id, credential_hash, signature, issued_date) VALUES (?, ?, ?, ?)',
@@ -1190,6 +1271,13 @@ def issue_credential():
             logging.error(f"Issue credential error: {str(e)}")
             flash('Error issuing credential.', 'danger')
     return render_template('issue_credential.html')
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    import traceback
+    error_message = f"Exception: {str(e)}\n{traceback.format_exc()}"
+    logging.error(error_message)
+    return render_template('500.html', error_message=str(e)), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.getenv('PORT', 7860)))
