@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Voice Command Functionality
     const voiceButton = document.getElementById('voice-button');
     if (voiceButton) {
         voiceButton.addEventListener('click', () => {
@@ -18,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Star Rating Functionality
     const stars = document.querySelectorAll('.rating .star');
     stars.forEach(star => {
         star.addEventListener('click', () => {
@@ -29,5 +31,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 stars[i].classList.add('filled');
             }
         });
+    });
+
+    // Dropdown Menu Functionality
+    const dropdowns = document.querySelectorAll('.dropdown');
+    dropdowns.forEach(dropdown => {
+        const button = dropdown.querySelector('.dropdown-button');
+        const content = dropdown.querySelector('.dropdown-content');
+
+        if (button && content) {
+            // Toggle dropdown on click for mobile
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                const isActive = dropdown.classList.contains('active');
+                // Close all dropdowns
+                document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('active'));
+                // Toggle current dropdown
+                if (!isActive) {
+                    dropdown.classList.add('active');
+                }
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!dropdown.contains(e.target)) {
+                    dropdown.classList.remove('active');
+                }
+            });
+        }
+    });
+
+    // Ensure All Sections Are Visible
+    const sections = document.querySelectorAll('.hero, .about, .features, .contact');
+    sections.forEach(section => {
+        section.style.display = 'block';
     });
 });
