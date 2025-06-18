@@ -435,6 +435,36 @@ def intern_signup():
             flash('Signup successful! Please login.', 'success')
             return redirect(url_for('intern_login'))
     return render_template('intern_signup.html')
+@app.route('/admin_signup', methods=['GET', 'POST'], strict_slashes=False)
+def admin_signup():
+    if request.method == 'POST':
+        name = request.form['name']
+        email = request.form['email']
+        password = hash_password(request.form['password'])
+        secret_code = request.form['secret_code']
+        expected_secret_code = os.getenv('ADMIN_SECRET_CODE', 'default-secret-code')  # Set in Hugging Face Spaces
+        if secret_code != expected_secret_code:
+            flash('Invalid secret code.', 'danger')
+            return render_template('admin_signup.html')
+        try:
+            conn = get_db_connection()
+            if conn is None:
+                flash('Database error.', 'danger')
+                return render_template('admin_signup.html')
+            conn.execute('INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
+                         (name, email, password, 'admin'))
+            conn.commit()
+            flash('Admin sign up successful! Please login.', 'success')
+            return redirect(url_for('index'))
+        except sqlite3.IntegrityError:
+            flash('Email already registered.', 'danger')
+        except Exception as e:
+            logging.error(f"Admin signup error: {str(e)}")
+            flash('Error during signup.', 'danger')
+        finally:
+            if conn:
+                conn.close()
+    return render_template('admin_signup.html')
 
 @app.route('/recruiter_dashboard', strict_slashes=False)
 def recruiter_dashboard():
