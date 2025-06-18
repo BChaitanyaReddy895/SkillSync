@@ -56,14 +56,17 @@ if not os.path.exists(DB_PATH) and os.path.exists(SOURCE_DB):
     shutil.copyfile(SOURCE_DB, DB_PATH)
 logging.info(f"Database path: {DB_PATH}, exists: {os.path.exists(DB_PATH)}")
 
-# Blockchain configuration
-WEB3_PROVIDER = 'https://sepolia.infura.io/v3/your-infura-key'
-CONTRACT_ADDRESS = '0xYourContractAddress'
-WALLET_ADDRESS = '0xYourWalletAddress'
-w3 = Web3(Web3.HTTPProvider(WEB3_PROVIDER))
-with open('credential_verification.abi', 'r') as f:
-    CONTRACT_ABI = json.load(f)
-contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=CONTRACT_ABI)
+# Public key for signature verification (replace with your public_key.pem content)
+PUBLIC_KEY_PEM = """-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2zQcp+kSdpAgcey6Z8aG
+8io1R8X5TpqJNlVOcxCb0cioW5RcPNs9ScfwyewZrAvcyWT0koo6Ir6yPaA2kNz5
+tDuCh8ud5gqC+2flklLQ56vu7UDzlrLgcMAxAgwKgLku7vX2q5HltKXNAcH452fI
+fkyxBAJIaaMfAcCNUkQf/LSmWsqZQY96N1AypbYVqDKlhaE8V/RY0dlqLTsj10u3
+arhfJzpXYnpUv61dAkDh7ENJcOE5UAO87vZSFuL/eDJOSGLjOi7gf/km9fniyoEO
+l28dSBTRhPPPzNvIGnYicQAPO7aBsLpUni2mAbP2aFPFL8a1TvpP32BOnIZASP8i
+YQIDAQAB
+-----END PUBLIC KEY-----
+"""  # TODO: Replace with actual public key
 
 # SQLite Connection
 def get_db_connection():
@@ -155,7 +158,16 @@ def initialize_database():
         rating_date TEXT,
         FOREIGN KEY (user_id) REFERENCES users(user_id),
         FOREIGN KEY (internship_id) REFERENCES internship_info(id)
+    
     );
+    CREATE TABLE IF NOT EXISTS credentials (
+            credential_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            credential_hash TEXT NOT NULL,
+            signature TEXT NOT NULL,
+            issued_date TEXT,
+            FOREIGN KEY (user_id) REFERENCES users(user_id)
+        );
     '''
     conn = sqlite3.connect(DB_PATH)
     conn.executescript(schema)
@@ -187,6 +199,7 @@ def insert_test_data():
     (2, 'Bob Johnson', 'bob.johnson@example.com', '$pbkdf2-sha256$29000$1RrjXGutlZLy3lvLeW/t3Q$J3Q2X5n7Z9X8Y6W5V4T3R2Q1P0O9N8M7L6K5J4I3H2G1F0E', 'intern', 'javascript, react, node.js'),
     (3, 'Carol Lee', 'carol.lee@example.com', '$pbkdf2-sha256$29000$1RrjXGutlZLy3lvLeW/t3Q$J3Q2X5n7Z9X8Y6W5V4T3R2Q1P0O9N8M7L6K5J4I3H2G1F0E', 'intern', 'python, django, postgresql'),
     (4, 'David Brown', 'david.brown@example.com', '$pbkdf2-sha256$29000$1RrjXGutlZLy3lvLeW/t3Q$J3Q2X5n7Z9X8Y6W5V4T3R2Q1P0O9N8M7L6K5J4I3H2G1F0E', 'intern', 'c++, opencv, machine learning');
+    (8, 'Admin User', 'admin@example.com', '$pbkdf2-sha256$29000$1RrjXGutlZLy3lvLeW/t3Q$J3Q2X5n7Z9X8Y6W5V4T3R2Q1P0O9N8M7L6K5J4I3H2G1F0E', 'admin');
 
     -- Insert Recruiters (user_id: 5-7)
     INSERT INTO users (user_id, name, email, password, role, organization_name, contact_details, location, website_link) VALUES
@@ -802,20 +815,6 @@ def peer_review():
     conn.close()
     return render_template('peer_review.html', resume=resume, reviews=reviews, other_resumes=other_resumes)
 
-@app.route('/verify_credential', methods=['GET', 'POST'], strict_slashes=False)
-def verify_credential():
-    if 'user_id' not in session:
-        flash('Please login.', 'danger')
-        return redirect(url_for('index'))
-    if request.method == 'POST':
-        credential_hash = request.form['credential_hash']
-        try:
-            is_verified = contract.functions.verifyCredential(credential_hash).call()
-            flash('Credential verified successfully!' if is_verified else 'Credential verification failed.', 'success' if is_verified else 'danger')
-        except Exception as e:
-            logging.error(f"Blockchain verification error: {str(e)}")
-            flash('Error verifying credential.', 'danger')
-    return render_template('verify_credential.html')
 
 @app.route('/match', strict_slashes=False)
 def match():
@@ -1080,6 +1079,87 @@ def handle_exception(e):
     error_message = f"Exception: {str(e)}\n{traceback.format_exc()}"
     logging.error(error_message)
     return render_template('500.html', error_message=str(e)), 500
+@app.route('/verify_credential', methods=['GET', 'POST'], strict_slashes=False)
+def verify_credential():
+    if 'user_id' not in session:
+        flash('Please login.', 'danger')
+        return redirect(url_for('index'))
+    if request.method == 'POST':
+        credential_hash = request.form['credential_hash']
+        signature_hex = request.form['signature']
+        try:
+            # Load public key
+            public_key = serialization.load_pem_public_key(PUBLIC_KEY_PEM.encode())
+            # Convert hex signature to bytes
+            signature = bytes.fromhex(signature_hex)
+            # Verify signature
+            public_key.verify(
+                signature,
+                credential_hash.encode(),
+                padding.PSS(
+                    mgf=padding.MGF1(hashes.SHA256()),
+                    salt_length=padding.PSS.MAX_LENGTH
+                ),
+                hashes.SHA256()
+            )
+            # Check if credential exists in database
+            conn = get_db_connection()
+            if conn is None:
+                flash('Database error.', 'danger')
+                return render_template('verify_credential.html')
+            credential = conn.execute('SELECT * FROM credentials WHERE credential_hash = ?', (credential_hash,)).fetchone()
+            conn.close()
+            if credential:
+                flash('Credential verified successfully!', 'success')
+            else:
+                flash('Credential not found in database.', 'danger')
+        except InvalidSignature:
+            flash('Invalid signature.', 'danger')
+        except Exception as e:
+            logging.error(f"Verification error: {str(e)}")
+            flash('Error verifying credential.', 'danger')
+    return render_template('verify_credential.html')
+
+@app.route('/issue_credential', methods=['GET', 'POST'], strict_slashes=False)
+def issue_credential():
+    if 'user_id' not in session or session.get('role') != 'admin':
+        flash('Admin access required.', 'danger')
+        return redirect(url_for('index'))
+    if request.method == 'POST':
+        user_id = request.form['user_id']
+        credential_details = request.form['credential_details']
+        try:
+            # Generate credential hash
+            credential_hash = hashlib.sha256(credential_details.encode()).hexdigest()
+            # Sign with private key (loaded from env)
+            private_key_pem = os.getenv('PRIVATE_KEY_PEM')
+            if not private_key_pem:
+                flash('Private key not configured.', 'danger')
+                return render_template('issue_credential.html')
+            private_key = serialization.load_pem_private_key(private_key_pem.encode(), password=None)
+            signature = private_key.sign(
+                credential_hash.encode(),
+                padding.PSS(
+                    mgf=padding.MGF1(hashes.SHA256()),
+                    salt_length=padding.PSS.MAX_LENGTH
+                ),
+                hashes.SHA256()
+            )
+            signature_hex = signature.hex()
+            # Store in database
+            conn = get_db_connection()
+            if conn is None:
+                flash('Database error.', 'danger')
+                return render_template('issue_credential.html')
+            conn.execute('INSERT INTO credentials (user_id, credential_hash, signature, issued_date) VALUES (?, ?, ?, ?)',
+                         (user_id, credential_hash, signature_hex, datetime.now().strftime('%Y-%m-%d')))
+            conn.commit()
+            conn.close()
+            flash(f'Credential issued: Hash={credential_hash}, Signature={signature_hex}', 'success')
+        except Exception as e:
+            logging.error(f"Issue credential error: {str(e)}")
+            flash('Error issuing credential.', 'danger')
+    return render_template('issue_credential.html')
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.getenv('PORT', 7860)))
