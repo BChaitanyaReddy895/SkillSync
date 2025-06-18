@@ -38,26 +38,23 @@ document.addEventListener('DOMContentLoaded', () => {
     dropdowns.forEach(dropdown => {
         const button = dropdown.querySelector('.dropdown-button');
         const content = dropdown.querySelector('.dropdown-content');
-
         if (button && content) {
-            // Toggle dropdown on click for mobile
             button.addEventListener('click', (e) => {
                 e.preventDefault();
                 const isActive = dropdown.classList.contains('active');
-                // Close all dropdowns
                 document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('active'));
-                // Toggle current dropdown
                 if (!isActive) {
                     dropdown.classList.add('active');
+                    console.log(`Dropdown toggled: ${button.textContent}`);
                 }
             });
-
-            // Close dropdown when clicking outside
             document.addEventListener('click', (e) => {
                 if (!dropdown.contains(e.target)) {
                     dropdown.classList.remove('active');
                 }
             });
+        } else {
+            console.warn('Dropdown button or content missing:', dropdown);
         }
     });
 
@@ -65,5 +62,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const sections = document.querySelectorAll('.hero, .about, .features, .contact');
     sections.forEach(section => {
         section.style.display = 'block';
+        console.log(`Section visible: ${section.className}`);
+    });
+
+    // Debug Navigation
+    const navLinks = document.querySelectorAll('.nav-link');
+    navLinks.forEach(link => {
+        console.log(`Nav link: ${link.textContent}, href: ${link.href}`);
     });
 });
