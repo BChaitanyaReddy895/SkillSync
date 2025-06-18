@@ -1216,7 +1216,7 @@ def verify_credential():
     return render_template('verify_credential.html')
 
 @app.route('/issue_credential', methods=['GET', 'POST'], strict_slashes=False)
-@role_required('admin')
+@role_required('admin'||'recruiter')
 def issue_credential():
     if request.method == 'POST':
         user_id = request.form['user_id']
@@ -1262,6 +1262,14 @@ def issue_credential():
                          (user_id, credential_hash, signature_hex, datetime.now().strftime('%Y-%m-%d')))
             conn.commit()
             conn.close()
+            # Store credential data in session
+            session['issued_credential'] = {
+                'user_id': user_id,
+                'credential_details': credential_details,
+                'credential_hash': credential_hash,
+                'signature': signature_hex,
+                'issued_date': datetime.now().strftime('%Y-%m-%d')
+            }
             flash(f'Credential issued: Hash={credential_hash}, Signature={signature_hex}', 'success')
         except Exception as e:
             logging.error(f"Issue credential error: {str(e)}")
