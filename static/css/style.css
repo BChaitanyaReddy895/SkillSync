@@ -149,7 +149,32 @@ header {
     background-color: #e0f2e9;
 }
 
-/* Button styles for dashboards */
+/* Form Container */
+.form-container {
+    max-width: 400px;
+    margin: 50px auto;
+    padding: 20px;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+.form-container h2 {
+    color: #00796b;
+    margin-bottom: 20px;
+}
+
+.input-field {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+/* Button styles */
 .button {
     display: inline-block;
     padding: 10px 20px;
@@ -159,6 +184,9 @@ header {
     border-radius: 5px;
     margin: 5px;
     transition: background-color 0.3s ease;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
 }
 
 .button:hover {
@@ -229,6 +257,21 @@ header {
     .about p, .features p, .contact p, .features li {
         font-size: 14px;
     }
+
+    .form-container {
+        max-width: 90%;
+        padding: 15px;
+    }
+
+    .input-field {
+        font-size: 12px;
+        padding: 8px;
+    }
+
+    .button {
+        font-size: 12px;
+        padding: 8px 15px;
+    }
 }
 
 @media (max-width: 480px) {
@@ -250,5 +293,20 @@ header {
 
     .about p, .features p, .contact p, .features li {
         font-size: 12px;
+    }
+
+    .form-container {
+        max-width: 95%;
+        padding: 10px;
+    }
+
+    .input-field {
+        font-size: 12px;
+        padding: 6px;
+    }
+
+    .button {
+        font-size: 12px;
+        padding: 6px 10px;
     }
 }
