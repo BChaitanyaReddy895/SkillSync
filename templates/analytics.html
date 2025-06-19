@@ -18,14 +18,20 @@
     </header>
     <div class="container">
         <h1>Hiring Analytics for Internship ID {{ internship_id }}</h1>
-        <canvas id="analyticsChart" data-analytics='{{ analytics_data | tojson }}'></canvas>
+        <canvas id="analyticsChart" data-analytics Sociology='{{ analytics_data.applicants | tojson }}'></canvas>
         <h2>Candidate Details</h2>
-        {% for data in analytics_data %}
-            <div class="card">
-                <p><strong>Name:</strong> {{ data.name }}</p>
-                <p><strong>Acceptance Likelihood:</strong> {{ data.acceptance_prob | round(2) }}%</p>
-            </div>
-        {% endfor %}
+        {% if analytics_data.applicants %}
+            {% for data in analytics_data.applicants %}
+                <div class="card">
+                    <p><strong>Name:</strong> {{ data.name }}</p>
+                    <p><strong>Email:</strong> {{ data.email }}</p>
+                    <p><strong>Skills:</strong> {{ data.skills }}</p>
+                    <p><strong>Acceptance Likelihood:</strong> {{ data.acceptance_prob | round(2) }}%</p>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>No applicants found for this internship.</p>
+        {% endif %}
     </div>
     <script src="{{ url_for('static', filename='js/chart.js') }}"></script>
 </body>
