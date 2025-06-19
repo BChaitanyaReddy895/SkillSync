@@ -3,12 +3,94 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hiring Analytics</title>
+    <title>Hiring Analytics - SkillSync</title>
     <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        .card {
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(120deg, #e0f7fa 0%, #f4f4f9 100%);
+            min-height: 100vh;
+        }
+
+        header {
+            background-color: #00796b;
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        header img {
+            height: 50px;
+        }
+
+        nav {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            font-size: 16px;
+            padding: 8px 16px;
+            border: 1px solid white;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        nav a:hover {
+            background-color: white;
+            color: #00796b;
+        }
+
+        .container {
+            padding: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #00796b;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 2.2rem;
+        }
+
+        h2 {
+            color: #00796b;
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+
+        .flash-messages {
+            margin: 10px 0 18px 0;
+        }
+
+        .flash-messages .success {
+            color: #2e7d32;
+            background: #e8f5e9;
+            border-left: 4px solid #2e7d32;
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin-bottom: 6px;
+        }
+
+        .flash-messages .danger {
+            color: #c62828;
+            background: #ffebee;
+            border-left: 4px solid #c62828;
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin-bottom: 6px;
+        }
+
+        .candidate-details {
             background: #fff;
             border: 1px solid #e0e0e0;
             border-radius: 8px;
@@ -17,13 +99,30 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.07);
             text-align: left;
         }
-        .card p {
+
+        .candidate-details p {
             margin: 5px 0;
             color: #333;
         }
+
         canvas {
             max-width: 100%;
             margin: 20px 0;
+            background: #fff;
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        }
+
+        @media (max-width: 700px) {
+            .container {
+                max-width: 98vw;
+                padding: 8px 2vw;
+            }
+
+            canvas {
+                padding: 5px;
+            }
         }
     </style>
 </head>
@@ -37,11 +136,20 @@
     </header>
     <div class="container">
         <h1>Hiring Analytics for Internship ID {{ internship_id }}</h1>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
         <canvas id="analyticsChart" data-analytics='{{ analytics_data.applicants | tojson }}'></canvas>
         <h2>Candidate Details</h2>
         {% if analytics_data.applicants %}
             {% for data in analytics_data.applicants %}
-                <div class="card">
+                <div class="candidate-details">
                     <p><strong>Name:</strong> {{ data.name }}</p>
                     <p><strong>Email:</strong> {{ data.email }}</p>
                     <p><strong>Skills:</strong> {{ data.skills }}</p>
@@ -49,7 +157,9 @@
                 </div>
             {% endfor %}
         {% else %}
-            <p>No applicants found for this internship.</p>
+            <div class="candidate-details">
+                <p>No applicants found for this internship.</p>
+            </div>
         {% endif %}
     </div>
     <script src="{{ url_for('static', filename='js/chart.js') }}"></script>
