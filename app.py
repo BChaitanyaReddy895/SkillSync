@@ -391,7 +391,7 @@ def recruiter_login():
             logging.info(f"Recruiter login: Email={email}, user_id={user['user_id']}")
             flash('Login successful!', 'success')
             return redirect(url_for('recruiter_dashboard'))
-        flash('Invalid credentials.', 'danger')
+        flash('Invalid credentials.', '  danger')
     return render_template('recruiter_login.html')
 
 @app.route('/intern_login', methods=['GET', 'POST'], strict_slashes=False)
@@ -805,7 +805,7 @@ def voice_command():
 
 @app.route('/analytics/<int:internship_id>', strict_slashes=False)
 @role_required('recruiter')
-def analytics(internship_id):  # Changed route to accept internship_id as parameter
+def analytics(internship_id):
     user_id = session['user_id']
     conn = get_db_connection()
     if not conn:
@@ -831,14 +831,29 @@ def analytics(internship_id):  # Changed route to accept internship_id as parame
         {'date': date, 'count': count}
         for date, count in Counter(app['applied_at'][:10] for app in applications).items()
     ]
+    # Calculate applicant-specific analytics
+    internship_skills = preprocess_skills(internship['skills_required'])
+    applicant_data = []
+    for resume in resumes:
+        user = conn.execute('SELECT * FROM users WHERE user_id = ?', (resume['user_id'],)).fetchone()
+        if user:
+            similarity = jaccard_similarity(preprocess_skills(resume['skills']), internship_skills)
+            acceptance_prob = similarity * 100  # Simple heuristic: similarity as likelihood
+            applicant_data.append({
+                'name': resume['name_of_applicant'],
+                'email': user['email'],
+                'skills': resume['skills'],
+                'acceptance_prob': acceptance_prob
+            })
     analytics_data = {
         'total_applicants': len(applications),
         'avg_rating': round(avg_rating, 2),
         'top_skills': top_skills,
-        'application_trend': application_trend
+        'application_trend': application_trend,
+        'applicants': applicant_data
     }
     conn.close()
-    return render_template('analytics.html', internship=internship, analytics_data=analytics_data)
+    return render_template('analytics.html', internship=internship, analytics_data=analytics_data, internship_id=internship_id)
 
 @app.route('/progress', strict_slashes=False)
 @role_required('intern')
@@ -933,7 +948,7 @@ def match():
 
 @app.route('/top_matched_applicants/<int:internship_id>', strict_slashes=False)
 @role_required('recruiter')
-def top_matched_applicants(internship_id):  # Changed route to accept internship_id
+def top_matched_applicants(internship_id):
     user_id = session['user_id']
     global resume_df, internship_df
     resume_df, internship_df = fetch_data()
