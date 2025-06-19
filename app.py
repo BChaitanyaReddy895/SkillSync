@@ -1222,29 +1222,36 @@ def issue_credential():
         flash('Server configuration error.', 'danger')
         return render_template('issue_credential.html')
     logging.info(f"Accessing issue_credential, session: {session.get('user_id', 'None')}, role: {session.get('role', 'None')}")
+    conn = get_db_connection()
+    if not conn:
+        flash('Database error.', 'danger')
+        return render_template('issue_credential.html')
+    interns = conn.execute('SELECT user_id, name FROM users WHERE role = ?', ('intern',)).fetchall()
+    conn.close()
+    interns_list = [{'user_id': intern['user_id'], 'name': intern['name']} for intern in interns]
     if request.method == 'POST':
         user_id = request.form.get('user_id')
         credential_details = request.form.get('credential_details', '').strip()
         logging.info(f'POST request: user_id={user_id}, credential_details={credential_details}')
         if not credential_details:
             flash('Credential details cannot be empty.', 'danger')
-            return render_template('issue_credential.html')
+            return render_template('issue_credential.html', interns=interns_list)
         try:
             user_id = int(user_id)
             conn = get_db_connection()
             if not conn:
                 flash('Database error.', 'danger')
-                return render_template('issue_credential.html')
+                return render_template('issue_credential.html', interns=interns_list)
             user = conn.execute('SELECT * FROM users WHERE user_id = ?', (user_id,)).fetchone()
             conn.close()
             if not user:
                 flash('Invalid user ID.', 'danger')
-                return render_template('issue_credential.html')
+                return render_template('issue_credential.html', interns=interns_list)
             credential_hash = hashlib.sha256(credential_details.encode()).hexdigest()
             private_key_pem = os.getenv('PRIVATE_KEY_PEM')
             if not private_key_pem:
                 flash('Private key not configured.', 'danger')
-                return render_template('issue_credential.html')
+                return render_template('issue_credential.html', interns=interns_list)
             private_key = serialization.load_pem_private_key(private_key_pem.encode(), password=None)
             signature = private_key.sign(
                 credential_hash.encode(),
@@ -1258,7 +1265,7 @@ def issue_credential():
             conn = get_db_connection()
             if not conn:
                 flash('Database error.', 'danger')
-                return render_template('issue_credential.html')
+                return render_template('issue_credential.html', interns=interns_list)
             conn.execute('INSERT INTO credentials (user_id, credential_hash, signature, issued_date) VALUES (?, ?, ?, ?)',
                          (user_id, credential_hash, signature_hex, datetime.now().strftime('%Y-%m-%d')))
             conn.commit()
@@ -1271,17 +1278,18 @@ def issue_credential():
                 'issued_date': datetime.now().strftime('%Y-%m-%d')
             }
             logging.info(f'Credential issued: user_id={user_id}, hash={credential_hash}')
-            flash(f'Credential issued: Hash={credential_hash}, Signature={signature_hex}', 'success')
+            flash(f'Credential issued: Hash={credential_hash[:10]}...{credential_hash[-10:]}, Signature={signature_hex[:10]}...{signature_hex[-10:]}', 'success')
         except ValueError:
             flash('User ID must be a number.', 'danger')
-            return render_template('issue_credential.html')
+            return render_template('issue_credential.html', interns=interns_list)
         except Exception as e:
             logging.error(f"Issue credential error: {str(e)}")
             flash('Error issuing credential.', 'danger')
+            return render_template('issue_credential.html', interns=interns_list)
     else:
         session.pop('issued_credential', None)
         logging.info('GET request: Cleared issued_credential session')
-    return render_template('issue_credential.html')
+    return render_template('issue_credential.html', interns=interns_list)
 
 @app.errorhandler(Exception)
 def handle_exception(e):
