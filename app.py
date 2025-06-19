@@ -53,7 +53,7 @@ logging.info(f"NLTK data directory: {nltk_data_dir}, writable: {os.access(nltk_d
 # Database configuration
 DB_PATH = '/tmp/database.db'
 
-# Public key for signature verification (replace with actual public_key.pem content)
+# Public key for signature verification
 PUBLIC_KEY_PEM = """-----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2zQcp+kSdpAgcey6Z8aG
 8io1R8X5TpqJNlVOcxCb0cioW5RcPNs9ScfwyewZrAvcyWT0koo6Ir6yPaA2kNz5
@@ -63,7 +63,7 @@ arhfJzpXYnpUv61dAkDh7ENJcOE5UAO87vZSFuL/eDJOSGLjOi7gf/km9fniyoEO
 l28dSBTRhPPPzNvIGnYicQAPO7aBsLpUni2mAbP2aFPFL8a1TvpP32BOnIZASP8i
 YQIDAQAB
 -----END PUBLIC KEY-----
-"""  # TODO: Replace with actual public_key.pem content
+"""
 
 # SQLite Connection
 def get_db_connection():
@@ -186,9 +186,8 @@ def insert_test_data():
         logging.info("Test data already exists")
         conn.close()
         return
-    admin_password_hash = generate_password_hash('password')  # Hash for admin@example.com
+    admin_password_hash = generate_password_hash('password')
     test_data_sql = f'''
-    -- Clear existing data
     DELETE FROM applications;
     DELETE FROM internship_info;
     DELETE FROM resume_info;
@@ -198,29 +197,21 @@ def insert_test_data():
     DELETE FROM internship_ratings;
     DELETE FROM credentials;
     DELETE FROM sqlite_sequence;
-
-    -- Insert Interns (user_id: 1-4)
     INSERT INTO users (user_id, name, email, password, role, skills) VALUES
     (1, 'Alice Smith', 'alice.smith@example.com', '{admin_password_hash}', 'intern', 'python, java, sql, tensorflow'),
     (2, 'Bob Johnson', 'bob.johnson@example.com', '{admin_password_hash}', 'intern', 'javascript, react, node.js'),
     (3, 'Carol Lee', 'carol.lee@example.com', '{admin_password_hash}', 'intern', 'python, django, postgresql'),
     (4, 'David Brown', 'david.brown@example.com', '{admin_password_hash}', 'intern', 'c++, opencv, machine learning'),
     (8, 'Admin User', 'admin@example.com', '{admin_password_hash}', 'admin', NULL);
-
-    -- Insert Recruiters (user_id: 5-7)
     INSERT INTO users (user_id, name, email, password, role, organization_name, contact_details, location, website_link) VALUES
     (5, 'Emma Wilson', 'emma.wilson@techcorp.com', '{admin_password_hash}', 'recruiter', 'TechCorp', '+1-800-555-1234', 'San Francisco, CA', 'https://techcorp.com'),
     (6, 'Frank Taylor', 'frank.taylor@innovatech.com', '{admin_password_hash}', 'recruiter', 'Innovatech', '+1-800-555-5678', 'New York, NY', 'https://innovatech.com'),
     (7, 'Grace Miller', 'grace.miller@datatech.com', '{admin_password_hash}', 'recruiter', 'DataTech', '+1-800-555-9012', 'Austin, TX', 'https://datatech.com');
-
-    -- Insert Resumes
     INSERT INTO resume_info (user_id, name_of_applicant, email, phone_number, skills, experience, education, certifications, achievements, resume_path, downloaded) VALUES
     (1, 'Alice Smith', 'alice.smith@example.com', '+1-555-123-4567', 'python, java, sql, tensorflow', 'Software Intern at XYZ Corp (6 months)', 'B.S. Computer Science, MIT, 2024', 'AWS Certified Developer', 'Won Hackathon 2023', 'static/uploads/1_resume.pdf', 0),
     (2, 'Bob Johnson', 'bob.johnson@example.com', '+1-555-234-5678', 'javascript, react, node.js', 'Frontend Developer at ABC Inc (1 year)', 'B.S. Software Engineering, Stanford, 2023', 'React Professional Certification', 'Published NPM package', 'static/uploads/2_resume.pdf', 0),
     (3, 'Carol Lee', 'carol.lee@example.com', '+1-555-345-6789', 'python, django, postgresql', 'Backend Intern at DEF Ltd (4 months)', 'B.S. Computer Science, UC Berkeley, 2024', 'Django Developer Certification', 'Top 10 in CodeJam 2024', 'static/uploads/3_resume.pdf', 0),
     (4, 'David Brown', 'david.brown@example.com', '+1-555-456-7890', 'c++, opencv, machine learning', 'Research Assistant at GHI University (8 months)', 'M.S. AI, Caltech, 2025', 'TensorFlow Developer Certificate', 'Published CVPR 2024 paper', 'static/uploads/4_resume.pdf', 0);
-
-    -- Insert Internships
     INSERT INTO internship_info (id, role, description_of_internship, start_date, end_date, duration, type_of_internship, skills_required, location, years_of_experience, phone_number, company_name, company_mail, user_id, posted_date, expected_salary) VALUES
     (1, 'Machine Learning Intern', 'Develop ML models for image recognition', '2025-07-01', '2025-12-31', '6 months', 'Full-time', 'python, tensorflow, machine learning', 'San Francisco, CA', 0, '+1-800-555-1234', 'TechCorp', 'emma.wilson@techcorp.com', 5, '2025-06-15', 'Unpaid'),
     (2, 'Frontend Developer Intern', 'Build responsive web interfaces', '2025-08-01', '2025-11-30', '4 months', 'Part-time', 'javascript, react, css', 'New York, NY', 0, '+1-800-555-5678', 'Innovatech', 'frank.taylor@innovatech.com', 6, '2025-06-15', '$15/hr'),
@@ -228,8 +219,6 @@ def insert_test_data():
     (4, 'AI Research Intern', 'Research on computer vision algorithms', '2025-09-01', '2026-02-28', '6 months', 'Full-time', 'c++, opencv, python', 'San Francisco, CA', 1, '+1-800-555-1234', 'TechCorp', 'emma.wilson@techcorp.com', 5, '2025-06-15', '$20/hr'),
     (5, 'Full Stack Intern', 'Work on both frontend and backend', '2025-07-01', '2025-12-31', '6 months', 'Full-time', 'javascript, node.js, postgresql', 'New York, NY', 0, '+1-800-555-5678', 'Innovatech', 'frank.taylor@innovatech.com', 6, '2025-06-15', 'Unpaid'),
     (6, 'Data Science Intern', 'Analyze data and build predictive models', '2025-08-01', '2025-12-31', '5 months', 'Part-time', 'python, sql, machine learning', 'Austin, TX', 0, '+1-800-555-9012', 'DataTech', 'grace.miller@datatech.com', 7, '2025-06-15', '$18/hr');
-
-    -- Insert Applications
     INSERT INTO applications (id, user_id, internship_id, applied_at) VALUES
     (1, 1, 1, '2025-06-15 10:00:00'),
     (2, 1, 3, '2025-06-15 11:00:00'),
@@ -240,19 +229,13 @@ def insert_test_data():
     (7, 3, 6, '2025-06-15 16:00:00'),
     (8, 4, 1, '2025-06-15 17:00:00'),
     (9, 4, 4, '2025-06-15 18:00:00');
-
-    -- Insert Progress Data
     INSERT INTO user_progress (user_id, task_type, task_description, completion_date, points) VALUES
     (1, 'Resume Creation', 'Created ATS-friendly resume', '2025-06-15', 100),
     (1, 'Application', 'Applied to Machine Learning Intern', '2025-06-15', 50),
     (2, 'Resume Creation', 'Created ATS-friendly resume', '2025-06-15', 100);
-
-    -- Insert Peer Reviews
     INSERT INTO peer_reviews (reviewer_id, reviewed_user_id, resume_id, rating, feedback, review_date) VALUES
     (2, 1, 1, 4, 'Great skills section, consider adding more project details.', '2025-06-15'),
     (3, 1, 1, 3, 'Good resume, but formatting can be improved.', '2025-06-15');
-
-    -- Insert Internship Ratings
     INSERT INTO internship_ratings (user_id, internship_id, rating, feedback, rating_date) VALUES
     (1, 1, 5, 'Excellent learning opportunity.', '2025-06-15'),
     (2, 2, 4, 'Good project, but limited mentorship.', '2025-06-15');
@@ -570,7 +553,7 @@ def intern_dashboard():
                 'similarity_score': round(similarity * 100, 2)
             })
     internships = sorted(internships, key=lambda x: x['similarity_score'], reverse=True)
-    total_points = sum(p['points'] for p in progress)
+    total_points = sum(p['points'] for p in progress) if progress else 0
     level = total_points // 100
     return render_template('intern_dashboard.html', user_name=session['user_name'], internships=internships, applied_internship_ids=applied_internship_ids, total_points=total_points, level=level)
 
@@ -822,7 +805,7 @@ def voice_command():
 
 @app.route('/analytics/<int:internship_id>', strict_slashes=False)
 @role_required('recruiter')
-def analytics():
+def analytics(internship_id):  # Changed route to accept internship_id as parameter
     user_id = session['user_id']
     conn = get_db_connection()
     if not conn:
@@ -866,13 +849,14 @@ def progress():
         flash('Database error.', 'danger')
         return redirect(url_for('intern_login'))
     progress = conn.execute('SELECT * FROM user_progress WHERE user_id = ?', (user_id,)).fetchall()
-    total_points = sum(p['points'] for p in progress)
+    total_points = sum(p['points'] for p in progress if p['points'] is not None) if progress else 0
     level = total_points // 100
     achievements = [
         {'name': 'Resume Master', 'unlocked': total_points >= 100},
         {'name': 'Application Pro', 'unlocked': total_points >= 150}
     ]
     conn.close()
+    logging.info(f"Progress for user_id={user_id}: {len(progress)} records, total_points={total_points}")
     return render_template('progress.html', progress=progress, total_points=total_points, level=level, achievements=achievements)
 
 @app.route('/interview_prep', strict_slashes=False)
@@ -883,7 +867,7 @@ def interview_prep():
         {'id': 2, 'question': 'What are your strengths?', 'category': 'General'},
         {'id': 3, 'question': 'Explain a Python decorator.', 'category': 'Technical'}
     ]
-    return render_template('interview_prep.html', questions=questions)
+    return render_template('interview_prep.html', questions=questions, user_name=session['user_name'])
 
 @app.route('/peer_review', methods=['GET', 'POST'], strict_slashes=False)
 @role_required('intern')
@@ -949,7 +933,7 @@ def match():
 
 @app.route('/top_matched_applicants/<int:internship_id>', strict_slashes=False)
 @role_required('recruiter')
-def top_matched_applicants():
+def top_matched_applicants(internship_id):  # Changed route to accept internship_id
     user_id = session['user_id']
     global resume_df, internship_df
     resume_df, internship_df = fetch_data()
@@ -1222,16 +1206,14 @@ def issue_credential():
         logging.error('FLASK_SECRET_KEY not set')
         flash('Server configuration error.', 'danger')
         return render_template('issue_credential.html')
-
+    logging.info(f"Accessing issue_credential, session: {session.get('user_id', 'None')}, role: {session.get('role', 'None')}")
     if request.method == 'POST':
         user_id = request.form.get('user_id')
         credential_details = request.form.get('credential_details', '').strip()
         logging.info(f'POST request: user_id={user_id}, credential_details={credential_details}')
-
         if not credential_details:
             flash('Credential details cannot be empty.', 'danger')
             return render_template('issue_credential.html')
-        
         try:
             user_id = int(user_id)
             conn = get_db_connection()
@@ -1243,11 +1225,6 @@ def issue_credential():
             if not user:
                 flash('Invalid user ID.', 'danger')
                 return render_template('issue_credential.html')
-        except ValueError:
-            flash('User ID must be a number.', 'danger')
-            return render_template('issue_credential.html')
-
-        try:
             credential_hash = hashlib.sha256(credential_details.encode()).hexdigest()
             private_key_pem = os.getenv('PRIVATE_KEY_PEM')
             if not private_key_pem:
@@ -1271,7 +1248,6 @@ def issue_credential():
                          (user_id, credential_hash, signature_hex, datetime.now().strftime('%Y-%m-%d')))
             conn.commit()
             conn.close()
-            # Store credential data in session
             session['issued_credential'] = {
                 'user_id': user_id,
                 'credential_details': credential_details,
@@ -1281,16 +1257,17 @@ def issue_credential():
             }
             logging.info(f'Credential issued: user_id={user_id}, hash={credential_hash}')
             flash(f'Credential issued: Hash={credential_hash}, Signature={signature_hex}', 'success')
+        except ValueError:
+            flash('User ID must be a number.', 'danger')
+            return render_template('issue_credential.html')
         except Exception as e:
             logging.error(f"Issue credential error: {str(e)}")
             flash('Error issuing credential.', 'danger')
     else:
-        # Clear session on GET to avoid stale data
         session.pop('issued_credential', None)
         logging.info('GET request: Cleared issued_credential session')
-
     return render_template('issue_credential.html')
-                          
+
 @app.errorhandler(Exception)
 def handle_exception(e):
     import traceback
