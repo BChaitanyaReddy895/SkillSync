@@ -110,7 +110,7 @@
             margin-bottom: 6px;
         }
 
-        .flash-messages .error {
+        .flash-messages .error, .flash-messages .danger {
             color: #c62828;
             background: #ffebee;
             border-left: 4px solid #c62828;
@@ -119,24 +119,25 @@
             margin-bottom: 6px;
         }
 
-        .profile-card, .internship {
+        .internship {
             background: #fff;
             border: 1px solid #e0e0e0;
             border-radius: 8px;
             padding: 18px 18px 12px 18px;
             margin: 16px 0;
             box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-        }
-
-        .profile-card p, .internship p {
-            margin: 5px 0;
-            color: #333;
+            text-align: left;
         }
 
         .internship h3 {
             color: #00796b;
             margin: 0 0 10px;
             font-size: 1.3rem;
+        }
+
+        .internship p {
+            margin: 5px 0;
+            color: #333;
         }
 
         .internship-actions {
@@ -196,15 +197,7 @@
                 </div>
             {% endif %}
         {% endwith %}
-        <div class="profile-card">
-            <p><strong>Name:</strong> {{ recruiter.name | default('N/A') }}</p>
-            <p><strong>Organization:</strong> {{ recruiter.organization_name | default('N/A') }}</p>
-            <p><strong>Contact Details:</strong> {{ recruiter.contact_details | default('N/A') }}</p>
-            <p><strong>Location:</strong> {{ recruiter.location | default('N/A') }}</p>
-            <p><strong>Website:</strong> {% if recruiter.website_link %}<a href="{{ recruiter.website_link }}" target="_blank">{{ recruiter.website_link }}</a>{% else %}N/A{% endif %}</p>
-        </div>
         <div class="dashboard-actions">
-            <a href="{{ url_for('edit_profile') }}" class="button">Edit Profile</a>
             <a href="{{ url_for('register_internship') }}" class="button">Register Internship</a>
             <a href="{{ url_for('applied_applicants') }}" class="button">Display Applied Applicants</a>
             <a href="{{ url_for('edit_organization_profile') }}" class="button">Edit Organization Profile</a>
@@ -230,12 +223,11 @@
             <p>No internships posted yet.</p>
         {% endif %}
     </div>
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
     <script>
         console.log('Recruiter Dashboard loaded');
-        document.querySelectorAll('.profile-card, .internship').forEach(card => {
+        document.querySelectorAll('.internship').forEach(card => {
             card.style.display = 'block';
-            console.log('Card visible:', card.querySelector('h3')?.textContent || 'Profile Card');
+            console.log('Card visible:', card.querySelector('h3')?.textContent);
         });
     </script>
 </body>
