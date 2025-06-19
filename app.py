@@ -391,7 +391,7 @@ def recruiter_login():
             logging.info(f"Recruiter login: Email={email}, user_id={user['user_id']}")
             flash('Login successful!', 'success')
             return redirect(url_for('recruiter_dashboard'))
-        flash('Invalid credentials.', '  danger')
+        flash('Invalid credentials.', 'danger')
     return render_template('recruiter_login.html')
 
 @app.route('/intern_login', methods=['GET', 'POST'], strict_slashes=False)
@@ -1183,33 +1183,59 @@ def verify_credential():
         flash('Please login.', 'danger')
         return redirect(url_for('index'))
     if request.method == 'POST':
-        credential_hash = request.form['credential_hash']
-        signature_hex = request.form['signature']
+        credential_hash_input = request.form['credential_hash'].strip()
+        signature_input = request.form['signature'].strip()
         try:
+            conn = get_db_connection()
+            if not conn:
+                flash('Database error.', 'danger')
+                return render_template('verify_credential.html')
+            # Fetch all credentials to check for matches
+            credentials = conn.execute('SELECT * FROM credentials').fetchall()
+            matched_credential = None
+            for cred in credentials:
+                full_hash = cred['credential_hash']
+                full_signature = cred['signature']
+                # Check if input matches full or truncated (first 10 + last 10)
+                truncated_hash = f"{full_hash[:10]}...{full_hash[-10:]}" if len(full_hash) > 20 else full_hash
+                truncated_signature = f"{full_signature[:10]}...{full_signature[-10:]}" if len(full_signature) > 20 else full_signature
+                if (credential_hash_input in (full_hash, truncated_hash)) and (signature_input in (full_signature, truncated_signature)):
+                    matched_credential = cred
+                    break
+            if not matched_credential:
+                conn.close()
+                flash('Credential not found in database.', 'danger')
+                return render_template('verify_credential.html')
+            # Verify signature using full values
             public_key = serialization.load_pem_public_key(PUBLIC_KEY_PEM.encode())
-            signature = bytes.fromhex(signature_hex)
+            signature = bytes.fromhex(matched_credential['signature'])
             public_key.verify(
                 signature,
-                credential_hash.encode(),
+                matched_credential['credential_hash'].encode(),
                 padding.PSS(
                     mgf=padding.MGF1(hashes.SHA256()),
                     salt_length=padding.PSS.MAX_LENGTH
                 ),
                 hashes.SHA256()
             )
-            conn = get_db_connection()
-            if not conn:
-                flash('Database error.', 'danger')
-                return render_template('verify_credential.html')
-            credential = conn.execute('SELECT * FROM credentials WHERE credential_hash = ?', (credential_hash,)).fetchone()
+            # Fetch user details for display
+            user = conn.execute('SELECT name FROM users WHERE user_id = ?', (matched_credential['user_id'],)).fetchone()
             conn.close()
-            if credential:
-                flash('Credential verified successfully!', 'success')
-            else:
-                flash('Credential not found in database.', 'danger')
+            # Store credential in session for display
+            session['verified_credential'] = {
+                'user_id': matched_credential['user_id'],
+                'user_name': user['name'] if user else 'Unknown',
+                'credential_hash': matched_credential['credential_hash'],
+                'signature': matched_credential['signature'],
+                'issued_date': matched_credential['issued_date']
+            }
+            flash('Credential verified successfully!', 'success')
         except InvalidSignature:
+            conn.close()
             flash('Invalid signature.', 'danger')
         except Exception as e:
+            if conn:
+                conn.close()
             logging.error(f"Verification error: {str(e)}")
             flash('Error verifying credential.', 'danger')
     return render_template('verify_credential.html')
