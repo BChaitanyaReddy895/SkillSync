@@ -203,6 +203,22 @@
             <a href="{{ url_for('edit_organization_profile') }}" class="button">Edit Organization Profile</a>
             <a href="{{ url_for('verify_credential') }}" class="button">Verify Credential</a>
         </div>
+        <h2>Organization Details</h2>
+        <div class="internship">
+            <h3>{{ recruiter.organization_name }}</h3>
+            <p><strong>Contact Details:</strong> {{ recruiter.contact_details or 'Not provided' }}</p>
+            <p><strong>Location:</strong> {{ recruiter.location or 'Not provided' }}</p>
+            <p><strong>Website:</strong> 
+                {% if recruiter.website_link %}
+                    <a href="{{ recruiter.website_link }}" target="_blank">{{ recruiter.website_link }}</a>
+                {% else %}
+                    Not provided
+                {% endif %}
+            </p>
+            <div class="internship-actions">
+                <a href="{{ url_for('edit_organization_profile') }}" class="view-applicants-button">Edit Organization Profile</a>
+            </div>
+        </div>
         <h2>Posted Internships</h2>
         {% if internships %}
             {% for internship in internships %}
