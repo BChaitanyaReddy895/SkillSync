@@ -1218,12 +1218,20 @@ def verify_credential():
 @app.route('/issue_credential', methods=['GET', 'POST'], strict_slashes=False)
 @role_required('admin')
 def issue_credential():
+    if not app.secret_key:
+        logging.error('FLASK_SECRET_KEY not set')
+        flash('Server configuration error.', 'danger')
+        return render_template('issue_credential.html')
+
     if request.method == 'POST':
-        user_id = request.form['user_id']
-        credential_details = request.form['credential_details'].strip()
+        user_id = request.form.get('user_id')
+        credential_details = request.form.get('credential_details', '').strip()
+        logging.info(f'POST request: user_id={user_id}, credential_details={credential_details}')
+
         if not credential_details:
             flash('Credential details cannot be empty.', 'danger')
             return render_template('issue_credential.html')
+        
         try:
             user_id = int(user_id)
             conn = get_db_connection()
@@ -1238,6 +1246,7 @@ def issue_credential():
         except ValueError:
             flash('User ID must be a number.', 'danger')
             return render_template('issue_credential.html')
+
         try:
             credential_hash = hashlib.sha256(credential_details.encode()).hexdigest()
             private_key_pem = os.getenv('PRIVATE_KEY_PEM')
@@ -1270,12 +1279,18 @@ def issue_credential():
                 'signature': signature_hex,
                 'issued_date': datetime.now().strftime('%Y-%m-%d')
             }
+            logging.info(f'Credential issued: user_id={user_id}, hash={credential_hash}')
             flash(f'Credential issued: Hash={credential_hash}, Signature={signature_hex}', 'success')
         except Exception as e:
             logging.error(f"Issue credential error: {str(e)}")
             flash('Error issuing credential.', 'danger')
-    return render_template('issue_credential.html')
+    else:
+        # Clear session on GET to avoid stale data
+        session.pop('issued_credential', None)
+        logging.info('GET request: Cleared issued_credential session')
 
+    return render_template('issue_credential.html')
+                          
 @app.errorhandler(Exception)
 def handle_exception(e):
     import traceback
