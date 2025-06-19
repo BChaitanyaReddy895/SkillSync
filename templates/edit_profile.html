@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Profile</title>
+    <title>Edit Profile - SkillSync</title>
     <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet">
     <style>
         body {
@@ -53,77 +53,73 @@
         }
 
         .container {
-            max-width: 600px;
-            margin: 40px auto;
-            background: #fff;
-            padding: 32px 24px 24px 24px;
-            border-radius: 16px;
-            box-shadow: 0 6px 24px rgba(0,0,0,0.10);
+            padding: 20px;
+            max-width: 900px;
+            margin: 0 auto;
         }
 
         h1 {
-            text-align: center;
             color: #00796b;
-            margin-bottom: 24px;
-            font-size: 2rem;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 2.2rem;
         }
 
-        form {
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
+        .form-container {
+            max-width: 400px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            text-align: center;
         }
 
-        label {
-            font-weight: 500;
-            color: #333;
-            margin-bottom: 4px;
-        }
-
-        input {
-            padding: 10px;
-            font-size: 1rem;
-            border: 1px solid #bdbdbd;
-            border-radius: 6px;
+        .input-field {
             width: 100%;
-            box-sizing: border-box;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
             background: #fafafa;
             transition: border-color 0.2s;
         }
 
-        input:focus {
+        .input-field:focus {
             border-color: #00796b;
             outline: none;
         }
 
-        button[type="submit"] {
-            padding: 12px;
+        .button {
+            display: inline-block;
+            padding: 14px 28px;
             background: linear-gradient(90deg, #00796b 60%, #26a69a 100%);
-            color: #fff;
-            border: none;
+            color: white;
+            text-decoration: none;
             border-radius: 6px;
             font-size: 1.1rem;
-            font-weight: bold;
-            cursor: pointer;
-            margin-top: 8px;
+            font-weight: 500;
+            border: none;
             transition: background 0.2s;
+            cursor: pointer;
+            margin: 10px 5px;
         }
 
-        button[type="submit"]:hover {
+        .button:hover {
             background: linear-gradient(90deg, #005a4f 60%, #00796b 100%);
         }
 
         .cancel-link {
             display: inline-block;
-            padding: 10px 22px;
+            padding: 14px 28px;
             background: #ccc;
             color: #333;
             text-decoration: none;
             border-radius: 6px;
-            font-size: 1rem;
+            font-size: 1.1rem;
             font-weight: 500;
-            margin-top: 8px;
-            text-align: center;
+            margin: 10px 5px;
             transition: background 0.2s;
         }
 
@@ -144,7 +140,7 @@
             margin-bottom: 6px;
         }
 
-        .flash-messages .error {
+        .flash-messages .error, .flash-messages .danger {
             color: #c62828;
             background: #ffebee;
             border-left: 4px solid #c62828;
@@ -153,10 +149,32 @@
             margin-bottom: 6px;
         }
 
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            color: #00796b;
+            font-weight: 500;
+        }
+
         @media (max-width: 700px) {
             .container {
                 max-width: 98vw;
-                padding: 16px 2vw;
+                padding: 8px 2vw;
+            }
+
+            .form-container {
+                max-width: 90%;
+                padding: 15px;
+            }
+
+            .input-field {
+                font-size: 12px;
+                padding: 8px;
+            }
+
+            .button, .cancel-link {
+                font-size: 1rem;
+                padding: 12px 20px;
             }
         }
     </style>
@@ -165,7 +183,7 @@
     <header>
         <img src="{{ url_for('static', filename='logo.png') }}" alt="SkillSync Logo">
         <nav>
-            <span>Welcome, {{ session.user_name }}</span>
+            <span>Welcome, {{ session.get('user_name', 'User') }}</span>
             <a href="{{ url_for('logout') }}">Logout</a>
         </nav>
     </header>
@@ -180,19 +198,18 @@
                 </div>
             {% endif %}
         {% endwith %}
-        <form action="{{ url_for('edit_profile') }}" method="POST" autocomplete="off">
-            <label for="name">Name</label>
-            <input type="text" id="name" name="name" value="{{ user.name if user else '' }}" required>
-
-            <label for="email">Email</label>
-            <input type="email" id="email" name="email" value="{{ user.email if user else '' }}" required>
-
-            <label for="password">New Password (Optional)</label>
-            <input type="password" id="password" name="password">
-
-            <button type="submit">Save Changes</button>
-            <a href="{{ url_for('intern_dashboard') }}" class="cancel-link">Cancel</a>
-        </form>
+        <div class="form-container">
+            <form action="{{ url_for('edit_profile') }}" method="POST" autocomplete="off">
+                <label for="name">Name</label>
+                <input type="text" id="name" name="name" class="input-field" value="{{ user.name | default('') }}" required>
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" class="input-field" value="{{ user.email | default('') }}" required>
+                <label for="password">New Password (Optional)</label>
+                <input type="password" id="password" name="password" class="input-field">
+                <button type="submit" class="button">Save Changes</button>
+                <a href="{{ url_for(session.get('role') == 'recruiter' and 'recruiter_dashboard' or 'intern_dashboard') }}" class="cancel-link">Cancel</a>
+            </form>
+        </div>
     </div>
 </body>
 </html>
