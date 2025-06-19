@@ -3,9 +3,149 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interview Preparation</title>
+    <title>Interview Preparation - SkillSync</title>
     <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(120deg, #e0f7fa 0%, #f4f4f9 100%);
+            min-height: 100vh;
+        }
+
+        header {
+            background-color: #00796b;
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        header img {
+            height: 50px;
+        }
+
+        nav {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            font-size: 16px;
+            padding: 8px 16px;
+            border: 1px solid white;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        nav a:hover {
+            background-color: white;
+            color: #00796b;
+        }
+
+        .container {
+            padding: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #00796b;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 2.2rem;
+        }
+
+        h2 {
+            color: #00796b;
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            color: #00796b;
+            font-weight: 500;
+            font-size: 1.1rem;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+            resize: vertical;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 14px 28px;
+            background: linear-gradient(90deg, #00796b 60%, #26a69a 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            font-weight: 500;
+            border: none;
+            transition: background 0.2s;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+
+        .button:hover {
+            background: linear-gradient(90deg, #005a4f 60%, #00796b 100%);
+        }
+
+        .feedback {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 18px;
+            margin: 16px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        }
+
+        .feedback li {
+            margin: 5px 0;
+            color: #333;
+        }
+
+        @media (max-width: 700px) {
+            .container {
+                max-width: 98vw;
+                padding: 8px 2vw;
+            }
+
+            .form-group {
+                padding: 10px;
+            }
+
+            textarea {
+                font-size: 12px;
+                padding: 8px;
+            }
+
+            .button {
+                font-size: 1rem;
+                padding: 12px 20px;
+            }
+        }
+    </style>
 </head>
 <body>
     <header>
@@ -16,23 +156,29 @@
         </nav>
     </header>
     <div class="container">
-        <h1>Interview Prep for {{ internship.role }}</h1>
-        <form method="POST">
-            {% for question in questions %}
-                <div class="form-group">
-                    <label>{{ loop.index }}. {{ question }}</label>
-                    <textarea name="answers" rows="4" required></textarea>
-                </div>
-            {% endfor %}
-            <button type="submit" class="button">Submit Answers</button>
-        </form>
+        <h1>Interview Preparation, {{ user_name | default('User') }}</h1>
+        <div>
+            {% if questions %}
+                {% for question in questions %}
+                    <div class="form-group">
+                        <label>{{ loop.index }}. {{ question.question }} ({{ question.category }})</label>
+                        <textarea name="answer_{{ question.id }}" rows="4" placeholder="Type your answer here..."></textarea>
+                    </div>
+                {% endfor %}
+                <p><em>Note: Answer saving is not currently supported. Please copy your answers for future reference.</em></p>
+            {% else %}
+                <p>No interview questions available. Please check back later.</p>
+            {% endif %}
+        </div>
         {% if feedback %}
             <h2>Feedback</h2>
-            <ul>
-                {% for fb in feedback %}
-                    <li>{{ fb }}</li>
-                {% endfor %}
-            </ul>
+            <div class="feedback">
+                <ul>
+                    {% for fb in feedback %}
+                        <li>{{ fb }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
         {% endif %}
     </div>
 </body>
