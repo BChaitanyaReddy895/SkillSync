@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gig Opportunities - SkillSync</title>
+</head>
+<body>
+    <h1>Gig & Remote Work Opportunities</h1>
+    {% if gigs %}
+        <ul>
+            {% for gig in gigs %}
+                <li>{{ gig.title }} ({{ gig.platform }}) - <a href="{{ gig.url }}">Apply</a></li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No opportunities found.</p>
+    {% endif %}
+    <a href="{{ url_for('intern_dashboard') }}">Back to Dashboard</a>
+</body>
+</html>
