@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASCI - SkillSync</title>
+</head>
+<body>
+    <h1>AI Skill Complementarity Index</h1>
+    <p><strong>Your ASCI Score:</strong> {{ asc_index }}%</p>
+    <h2>Recommendations</h2>
+    <ul>
+        {% for rec in recommendations %}
+            <li>{{ rec }}</li>
+        {% endfor %}
+    </ul>
+    <a href="{{ url_for('intern_dashboard') }}">Back to Dashboard</a>
+</body>
+</html>
