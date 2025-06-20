@@ -215,7 +215,7 @@
             <a href="{{ url_for('interview_prep') }}" class="button">Interview Prep</a>
             <a href="{{ url_for('peer_review') }}" class="button">Peer Review</a>
             <a href="{{ url_for('verify_credential') }}" class="button">Verify Credential</a>
-            <button id="voice-command-btn" class="button">Voice Command</button>
+            <button id="voice-command-btn" type="button" class="button">Voice Command</button>
         </div>
         <h2>Matched Internships</h2>
         {% if internships %}
@@ -248,10 +248,82 @@
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
     <script>
         console.log('Intern Dashboard loaded');
+
+        // Ensure internship cards are visible
         document.querySelectorAll('.internship').forEach(card => {
             card.style.display = 'block';
             console.log('Internship card visible:', card.querySelector('h3').textContent);
         });
+
+        // Voice Command Functionality
+        const voiceButton = document.getElementById('voice-command-btn');
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if (SpeechRecognition) {
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            voiceButton.addEventListener('click', () => {
+                voiceButton.textContent = 'Listening...';
+                voiceButton.disabled = true;
+                recognition.start();
+                console.log('Speech recognition started');
+            });
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript.toLowerCase().trim();
+                console.log('Voice command received:', transcript);
+                alert('Heard: ' + transcript);
+
+                // Map voice commands to dashboard routes
+                const commands = {
+                    'edit profile': '{{ url_for("edit_profile") }}',
+                    'upload resume': '{{ url_for("upload_resume") }}',
+                    'create resume': '{{ url_for("create_resume") }}',
+                    'edit resume': '{{ url_for("edit_resume") }}',
+                    'enhance resume': '{{ url_for("resume_enhance") }}',
+                    'skill gap': '{{ url_for("skill_gap") }}',
+                    'matched internships': '{{ url_for("match") }}',
+                    'applied internships': '{{ url_for("applied_internships") }}',
+                    'progress': '{{ url_for("progress") }}',
+                    'interview prep': '{{ url_for("interview_prep") }}',
+                    'peer review': '{{ url_for("peer_review") }}',
+                    'verify credential': '{{ url_for("verify_credential") }}',
+                    'logout': '{{ url_for("logout") }}'
+                };
+
+                for (const [command, url] of Object.entries(commands)) {
+                    if (transcript.includes(command)) {
+                        window.location.href = url;
+                        console.log(`Navigating to ${command}: ${url}`);
+                        return;
+                    }
+                }
+
+                alert('Command not recognized. Try saying "edit profile", "verify credential", or "logout".');
+                console.warn('Unrecognized command:', transcript);
+            };
+
+            recognition.onend = () => {
+                voiceButton.textContent = 'Voice Command';
+                voiceButton.disabled = false;
+                console.log('Speech recognition stopped');
+            };
+
+            recognition.onerror = (event) => {
+                voiceButton.textContent = 'Voice Command';
+                voiceButton.disabled = false;
+                alert('Speech recognition error: ' + event.error);
+                console.error('Speech recognition error:', event.error);
+            };
+        } else {
+            voiceButton.disabled = true;
+            voiceButton.textContent = 'Voice Command (Unsupported)';
+            alert('Voice commands are not supported in this browser. Please use Chrome or Edge.');
+            console.warn('SpeechRecognition API not supported');
+        }
     </script>
 </body>
 </html>
