@@ -168,6 +168,34 @@ def initialize_database():
         issued_date TEXT,
         FOREIGN KEY (user_id) REFERENCES users(user_id)
     );
+    ALTER TABLE resume_info ADD COLUMN soft_skills TEXT;
+CREATE TABLE IF NOT EXISTS interview_feedback (
+    feedback_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    question TEXT,
+    response TEXT,
+    feedback TEXT,
+    date TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+CREATE TABLE IF NOT EXISTS mentors (
+    mentor_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    industry TEXT,
+    skills TEXT,
+    availability TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+CREATE TABLE IF NOT EXISTS mentorship_requests (
+    request_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    intern_id INTEGER,
+    mentor_id INTEGER,
+    message TEXT,
+    status TEXT DEFAULT 'pending',
+    request_date TEXT,
+    FOREIGN KEY (intern_id) REFERENCES users(user_id),
+    FOREIGN KEY (mentor_id) REFERENCES mentors(mentor_id)
+);
     '''
     conn = get_db_connection()
     if conn:
@@ -928,6 +956,7 @@ def match():
         flash('Please create your resume!', 'warning')
         return redirect(url_for('create_resume'))
     user_skills = preprocess_skills(resume['skills'])
+    soft_skills = resume['soft_skills'] or 'Not assessed'
     matched_internships = []
     for idx, internship in internship_df.iterrows():
         similarity = jaccard_similarity(user_skills, internship['processed_Required_Skills'])
@@ -941,10 +970,12 @@ def match():
                 'type_of_internship': internship['type_of_internship'],
                 'skills_required': internship['skills_required'],
                 'location': internship['location'],
-                'similarity_score': round(similarity * 100, 2)
+                'similarity_score': round(similarity * 100, 2),
+                'soft_skills': soft_skills
             })
     matched_internships = sorted(matched_internships, key=lambda x: x['similarity_score'], reverse=True)
     return render_template('match.html', matched_internships=matched_internships)
+
 
 @app.route('/top_matched_applicants/<int:internship_id>', strict_slashes=False)
 @role_required('recruiter')
@@ -973,12 +1004,14 @@ def top_matched_applicants(internship_id):
                     'name': resume['name_of_applicant'],
                     'email': user['email'],
                     'skills': resume['skills'],
+                    'soft_skills': resume['soft_skills'] or 'Not assessed',
                     'similarity_score': round(similarity * 100, 2),
                     'resume_path': resume.get('resume_path', '')
                 })
     conn.close()
     matched_applicants = sorted(matched_applicants, key=lambda x: x['similarity_score'], reverse=True)[:5]
     return render_template('top_matched_applicants.html', matched_applicants=matched_applicants, internship_title=internship_title, user_name=session['user_name'])
+
 
 @app.route('/download_resume/<path:resume_path>', strict_slashes=False)
 @role_required('recruiter')
@@ -1316,6 +1349,38 @@ def issue_credential():
         session.pop('issued_credential', None)
         logging.info('GET request: Cleared issued_credential session')
     return render_template('issue_credential.html', interns=interns_list)
+@app.route('/soft_skills_assessment', methods=['GET', 'POST'], strict_slashes=False)
+@role_required('intern')
+def soft_skills_assessment():
+    user_id = session['user_id']
+    conn = get_db_connection()
+    if not conn:
+        flash('Database error.', 'danger')
+        return redirect(url_for('intern_dashboard'))
+    resume = conn.execute('SELECT * FROM resume_info WHERE user_id = ?', (user_id,)).fetchone()
+    if not resume:
+        conn.close()
+        flash('Please create your resume first!', 'warning')
+        return redirect(url_for('create_resume'))
+    
+    if request.method == 'POST':
+        problem_solving = int(request.form.get('problem_solving', 0))
+        teamwork = int(request.form.get('teamwork', 0))
+        creativity = int(request.form.get('creativity', 0))
+        soft_skills = f"Problem Solving: {problem_solving}/5, Teamwork: {teamwork}/5, Creativity: {creativity}/5"
+        conn.execute('UPDATE resume_info SET soft_skills = ? WHERE user_id = ?', (soft_skills, user_id))
+        conn.execute('INSERT INTO user_progress (user_id, task_type, task_description, completion_date, points) VALUES (?, ?, ?, ?, ?)',
+                     (user_id, 'Soft Skills Assessment', 'Completed soft skills quiz', datetime.now().strftime('%Y-%m-%d'), 50))
+        conn.commit()
+        conn.close()
+        global resume_df, internship_df
+        resume_df, internship_df = fetch_data()
+        flash('Soft skills assessed successfully!', 'success')
+        return redirect(url_for('intern_dashboard'))
+    
+    conn.close()
+    return render_template('soft_skills_assessment.html')
+
 
 @app.errorhandler(Exception)
 def handle_exception(e):
