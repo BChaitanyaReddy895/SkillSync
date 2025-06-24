@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mentor Dashboard</title>
+</head>
+<body>
+    <h1>Mentor Dashboard</h1>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    <h2>Your Profile</h2>
+    <p>Industry: {{ mentor.industry }}</p>
+    <p>Skills: {{ mentor.skills }}</p>
+    <p>Availability: {{ mentor.availability }}</p>
+    <a href="{{ url_for('become_mentor') }}">Edit Profile</a>
+    <h2>Mentorship Requests</h2>
+    {% for request in requests %}
+        <p><strong>Intern:</strong> {{ request.name }} - <strong>Message:</strong> {{ request.message }} - <strong>Status:</strong> {{ request.status }}</p>
+        {% if request.status == 'pending' %}
+            <form method="POST" action="{{ url_for('respond_mentorship', request_id=request.request_id) }}">
+                <select name="status">
+                    <option value="accepted">Accept</option>
+                    <option value="rejected">Reject</option>
+                </select>
+                <button type="submit">Respond</button>
+            </form>
+        {% endif %}
+        <hr>
+    {% endfor %}
+    <a href="{{ url_for('recruiter_dashboard') }}">Back to Dashboard</a>
+</body>
+</html>
