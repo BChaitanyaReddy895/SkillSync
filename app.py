@@ -1381,6 +1381,43 @@ def soft_skills_assessment():
     conn.close()
     return render_template('soft_skills_assessment.html')
 
+@app.route('/mock_interview', methods=['GET', 'POST'], strict_slashes=False)
+@role_required('intern')
+def mock_interview():
+    user_id = session['user_id']
+    conn = get_db_connection()
+    if not conn:
+        flash('Database error.', 'danger')
+        return redirect(url_for('intern_dashboard'))
+    resume = conn.execute('SELECT skills, experience FROM resume_info WHERE user_id = ?', (user_id,)).fetchone()
+    if not resume:
+        conn.close()
+        flash('Please create your resume first!', 'warning')
+        return redirect(url_for('create_resume'))
+    
+    questions = [
+        {'id': 1, 'question': f'Tell me how you applied {resume["skills"]} in a project.', 'category': 'Technical'},
+        {'id': 2, 'question': 'Describe a challenge you faced and how you overcame it.', 'category': 'Behavioral'},
+        {'id': 3, 'question': 'Why are you interested in this internship?', 'category': 'General'}
+    ]
+    
+    if request.method == 'POST':
+        question_id = int(request.form.get('question_id'))
+        response = request.form.get('response')
+        # Mock NLP feedback (replace with actual NLP API in production)
+        feedback = "Your response is clear, but consider adding specific examples to strengthen your answer."
+        conn.execute('INSERT INTO interview_feedback (user_id, question, response, feedback, date) VALUES (?, ?, ?, ?, ?)',
+                     (user_id, questions[question_id-1]['question'], response, feedback, datetime.now().strftime('%Y-%m-%d')))
+        conn.execute('INSERT INTO user_progress (user_id, task_type, task_description, completion_date, points) VALUES (?, ?, ?, ?, ?)',
+                     (user_id, 'Mock Interview', 'Completed mock interview question', datetime.now().strftime('%Y-%m-%d'), 25))
+        conn.commit()
+        conn.close()
+        flash('Response submitted successfully!', 'success')
+        return redirect(url_for('mock_interview'))
+    
+    feedback_history = conn.execute('SELECT * FROM interview_feedback WHERE user_id = ?', (user_id,)).fetchall()
+    conn.close()
+    return render_template('mock_interview.html', questions=questions, feedback_history=feedback_history)
 
 @app.errorhandler(Exception)
 def handle_exception(e):
