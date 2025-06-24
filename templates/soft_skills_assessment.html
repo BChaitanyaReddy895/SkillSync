@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Soft Skills Assessment</title>
+</head>
+<body>
+    <h1>Soft Skills Assessment</h1>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    <form method="POST">
+        <label>Problem Solving (1-5):</label>
+        <input type="number" name="problem_solving" min="1" max="5" required><br>
+        <label>Teamwork (1-5):</label>
+        <input type="number" name="teamwork" min="1" max="5" required><br>
+        <label>Creativity (1-5):</label>
+        <input type="number" name="creativity" min="1" max="5" required><br>
+        <button type="submit">Submit Assessment</button>
+    </form>
+    <a href="{{ url_for('intern_dashboard') }}">Back to Dashboard</a>
+</body>
+</html>
