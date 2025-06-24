@@ -896,7 +896,9 @@ def progress():
     level = total_points // 100
     achievements = [
         {'name': 'Resume Master', 'unlocked': total_points >= 100},
-        {'name': 'Application Pro', 'unlocked': total_points >= 150}
+        {'name': 'Application Pro', 'unlocked': total_points >= 150},
+        {'name': 'Skill Builder', 'points': 200, 'unlocked': total_points >= 200},
+        {'name': 'Mentorship Seeker', 'points': 250, 'unlocked': total_points >= 250}
     ]
     conn.close()
     logging.info(f"Progress for user_id={user_id}: {len(progress)} records, total_points={total_points}")
@@ -976,7 +978,6 @@ def match():
     matched_internships = sorted(matched_internships, key=lambda x: x['similarity_score'], reverse=True)
     return render_template('match.html', matched_internships=matched_internships)
 
-
 @app.route('/top_matched_applicants/<int:internship_id>', strict_slashes=False)
 @role_required('recruiter')
 def top_matched_applicants(internship_id):
@@ -1000,19 +1001,40 @@ def top_matched_applicants(internship_id):
         if similarity > 0:
             user = conn.execute('SELECT * FROM users WHERE user_id = ?', (resume['user_id'],)).fetchone()
             if user:
+                progress = conn.execute('SELECT SUM(points) as total_points FROM user_progress WHERE user_id = ?', (resume['user_id'],)).fetchone()
+                total_points = progress['total_points'] or 0
                 matched_applicants.append({
                     'name': resume['name_of_applicant'],
                     'email': user['email'],
                     'skills': resume['skills'],
                     'soft_skills': resume['soft_skills'] or 'Not assessed',
                     'similarity_score': round(similarity * 100, 2),
-                    'resume_path': resume.get('resume_path', '')
+                    'resume_path': resume.get('resume_path', ''),
+                    'total_points': total_points
                 })
     conn.close()
     matched_applicants = sorted(matched_applicants, key=lambda x: x['similarity_score'], reverse=True)[:5]
     return render_template('top_matched_applicants.html', matched_applicants=matched_applicants, internship_title=internship_title, user_name=session['user_name'])
 
-
+@app.route('/leaderboard', strict_slashes=False)
+def leaderboard():
+    conn = get_db_connection()
+    if not conn:
+        flash('Database error.', 'danger')
+        return redirect(url_for('index'))
+    query = '''
+    SELECT u.name, SUM(p.points) as total_points
+    FROM user_progress p
+    JOIN users u ON p.user_id = u.user_id
+    WHERE u.role = 'intern'
+    GROUP BY p.user_id
+    ORDER BY total_points DESC
+    LIMIT 10
+    '''
+    leaderboard = conn.execute(query).fetchall()
+    conn.close()
+    return render_template('leaderboard.html', leaderboard=leaderboard)
+    
 @app.route('/download_resume/<path:resume_path>', strict_slashes=False)
 @role_required('recruiter')
 def download_resume(resume_path):
