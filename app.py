@@ -1454,6 +1454,100 @@ def ats_insights():
     
     conn.close()
     return render_template('ats_insights.html')
+@app.route('/become_mentor', methods=['GET', 'POST'], strict_slashes=False)
+@role_required('recruiter')
+def become_mentor():
+    user_id = session['user_id']
+    conn = get_db_connection()
+    if not conn:
+        flash('Database error.', 'danger')
+        return redirect(url_for('recruiter_dashboard'))
+    
+    if request.method == 'POST':
+        industry = request.form.get('industry')
+        skills = request.form.get('skills')
+        availability = request.form.get('availability')
+        existing_mentor = conn.execute('SELECT * FROM mentors WHERE user_id = ?', (user_id,)).fetchone()
+        if existing_mentor:
+            conn.execute('UPDATE mentors SET industry = ?, skills = ?, availability = ? WHERE user_id = ?',
+                         (industry, skills, availability, user_id))
+        else:
+            conn.execute('INSERT INTO mentors (user_id, industry, skills, availability) VALUES (?, ?, ?, ?)',
+                         (user_id, industry, skills, availability))
+        conn.commit()
+        conn.close()
+        flash('Mentor profile created/updated successfully!', 'success')
+        return redirect(url_for('recruiter_dashboard'))
+    
+    mentor = conn.execute('SELECT * FROM mentors WHERE user_id = ?', (user_id,)).fetchone()
+    conn.close()
+    return render_template('become_mentor.html', mentor=mentor)
+
+@app.route('/mentorship', methods=['GET', 'POST'], strict_slashes=False)
+@role_required('intern')
+def mentorship():
+    user_id = session['user_id']
+    conn = get_db_connection()
+    if not conn:
+        flash('Database error.', 'danger')
+        return redirect(url_for('intern_dashboard'))
+    
+    if request.method == 'POST':
+        mentor_id = int(request.form.get('mentor_id'))
+        message = request.form.get('message')
+        conn.execute('INSERT INTO mentorship_requests (intern_id, mentor_id, message, request_date) VALUES (?, ?, ?, ?)',
+                     (user_id, mentor_id, message, datetime.now().strftime('%Y-%m-%d')))
+        conn.execute('INSERT INTO user_progress (user_id, task_type, task_description, completion_date, points) VALUES (?, ?, ?, ?, ?)',
+                     (user_id, 'Mentorship Request', 'Sent mentorship request', datetime.now().strftime('%Y-%m-%d'), 25))
+        conn.commit()
+        conn.close()
+        flash('Mentorship request sent successfully!', 'success')
+        return redirect(url_for('mentorship'))
+    
+    mentors = conn.execute('SELECT m.*, u.name FROM mentors m JOIN users u ON m.user_id = u.user_id').fetchall()
+    requests = conn.execute('SELECT mr.*, u.name FROM mentorship_requests mr JOIN mentors m ON mr.mentor_id = m.mentor_id JOIN users u ON m.user_id = u.user_id WHERE mr.intern_id = ?', (user_id,)).fetchall()
+    conn.close()
+    return render_template('mentorship.html', mentors=mentors, requests=requests)
+
+@app.route('/mentor_dashboard', strict_slashes=False)
+@role_required('recruiter')
+def mentor_dashboard():
+    user_id = session['user_id']
+    conn = get_db_connection()
+    if not conn:
+        flash('Database error.', 'danger')
+        return redirect(url_for('recruiter_dashboard'))
+    mentor = conn.execute('SELECT * FROM mentors WHERE user_id = ?', (user_id,)).fetchone()
+    if not mentor:
+        conn.close()
+        flash('Please create a mentor profile first!', 'warning')
+        return redirect(url_for('become_mentor'))
+    requests = conn.execute('SELECT mr.*, u.name FROM mentorship_requests mr JOIN users u ON mr.intern_id = u.user_id WHERE mr.mentor_id = ?', (mentor['mentor_id'],)).fetchall()
+    conn.close()
+    return render_template('mentor_dashboard.html', mentor=mentor, requests=requests)
+
+@app.route('/respond_mentorship/<int:request_id>', methods=['POST'], strict_slashes=False)
+@role_required('recruiter')
+def respond_mentorship(request_id):
+    user_id = session['user_id']
+    conn = get_db_connection()
+    if not conn:
+        flash('Database error.', 'danger')
+        return redirect(url_for('mentor_dashboard'))
+    mentor = conn.execute('SELECT * FROM mentors WHERE user_id = ?', (user_id,)).fetchone()
+    if not mentor:
+        conn.close()
+        flash('Mentor profile not found.', 'danger')
+        return redirect(url_for('recruiter_dashboard'))
+    status = request.form.get('status')
+    conn.execute('UPDATE mentorship_requests SET status = ? WHERE request_id = ? AND mentor_id = ?', (status, request_id, mentor['mentor_id']))
+    conn.execute('INSERT INTO user_progress (user_id, task_type, task_description, completion_date, points) VALUES (?, ?, ?, ?, ?)',
+                 (user_id, 'Mentorship Response', f'Responded to mentorship request {request_id}', datetime.now().strftime('%Y-%m-%d'), 25))
+    conn.commit()
+    conn.close()
+    flash(f'Mentorship request {status} successfully!', 'success')
+    return redirect(url_for('mentor_dashboard'))
+
 
 @app.errorhandler(Exception)
 def handle_exception(e):
