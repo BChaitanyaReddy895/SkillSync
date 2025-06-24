@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mock Interview</title>
+</head>
+<body>
+    <h1>Mock Interview Simulator</h1>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    <h2>Questions</h2>
+    {% for question in questions %}
+        <form method="POST">
+            <p><strong>{{ question.question }}</strong> ({{ question.category }})</p>
+            <input type="hidden" name="question_id" value="{{ question.id }}">
+            <textarea name="response" required></textarea><br>
+            <button type="submit">Submit Response</button>
+        </form>
+        <hr>
+    {% endfor %}
+    <h2>Feedback History</h2>
+    {% for feedback in feedback_history %}
+        <p><strong>Question:</strong> {{ feedback.question }}</p>
+        <p><strong>Response:</strong> {{ feedback.response }}</p>
+        <p><strong>Feedback:</strong> {{ feedback.feedback }}</p>
+        <p><strong>Date:</strong> {{ feedback.date }}</p>
+        <hr>
+    {% endfor %}
+    <a href="{{ url_for('intern_dashboard') }}">Back to Dashboard</a>
+</body>
+</html>
