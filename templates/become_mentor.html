@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Become a Mentor</title>
+</head>
+<body>
+    <h1>Become a Mentor</h1>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    <form method="POST">
+        <label>Industry:</label>
+        <input type="text" name="industry" value="{{ mentor.industry if mentor else '' }}" required><br>
+        <label>Skills:</label>
+        <input type="text" name="skills" value="{{ mentor.skills if mentor else '' }}" required><br>
+        <label>Availability (e.g., 2 hours/week):</label>
+        <input type="text" name="availability" value="{{ mentor.availability if mentor else '' }}" required><br>
+        <button type="submit">Submit</button>
+    </form>
+    <a href="{{ url_for('recruiter_dashboard') }}">Back to Dashboard</a>
+</body>
+</html>
