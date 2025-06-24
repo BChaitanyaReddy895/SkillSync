@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mentorship Hub</title>
+</head>
+<body>
+    <h1>Mentorship Hub</h1>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    <h2>Available Mentors</h2>
+    {% for mentor in mentors %}
+        <p><strong>{{ mentor.name }}</strong> ({{ mentor.industry }}) - Skills: {{ mentor.skills }} - Availability: {{ mentor.availability }}</p>
+        <form method="POST">
+            <input type="hidden" name="mentor_id" value="{{ mentor.mentor_id }}">
+            <textarea name="message" placeholder="Introduce yourself and explain why you'd like this mentor." required></textarea><br>
+            <button type="submit">Request Mentorship</button>
+        </form>
+        <hr>
+    {% endfor %}
+    <h2>Your Requests</h2>
+    {% for request in requests %}
+        <p><strong>Mentor:</strong> {{ request.name }} - <strong>Status:</strong> {{ request.status }} - <strong>Message:</strong> {{ request.message }}</p>
+        <hr>
+    {% endfor %}
+    <a href="{{ url_for('intern_dashboard') }}">Back to Dashboard</a>
+</body>
+</html>
