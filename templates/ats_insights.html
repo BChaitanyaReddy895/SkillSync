@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ATS Insights</title>
+</head>
+<body>
+    <h1>ATS Resume Insights</h1>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    <form method="POST">
+        <label>Paste Job Description:</label><br>
+        <textarea name="job_description" rows="5" cols="50"></textarea><br>
+        <button type="submit">Analyze Resume</button>
+    </form>
+    {% if keyword_score is defined %}
+        <h2>Results</h2>
+        <p><strong>ATS Compatibility Score:</strong> {{ keyword_score }}%</p>
+        <h3>Optimization Tips:</h3>
+        <ul>
+            {% for tip in tips %}
+                <li>{{ tip }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+    <a href="{{ url_for('intern_dashboard') }}">Back to Dashboard</a>
+</body>
+</html>
