@@ -22,6 +22,7 @@ import numpy as np
 from functools import wraps
 from collections import Counter
 from transformers import pipeline
+from rake_nltk import Rake
 
 # Configure logging
 log_dir = "/tmp/logs"
@@ -1449,29 +1450,23 @@ def ats_insights():
         conn.close()
         flash('Please create your resume first!', 'warning')
         return redirect(url_for('create_resume'))
-    
+    keyword_score = None
+    tips = []
     if request.method == 'POST':
-        job_description = request.form.get('job_description')
+        job_description = request.form['job_description']
         resume_text = ' '.join([resume[field] for field in ['skills', 'experience', 'education', 'certifications', 'achievements'] if resume[field]])
-        job_text = preprocess_text(job_description)
-        resume_text = preprocess_text(resume_text)
-        similarity = cosine_sim(resume_text, job_text)
-        keyword_score = round(similarity * 100, 2)
+        r = Rake()
+        r.extract_keywords_from_text(job_description)
+        job_keywords = set(r.get_ranked_phrases())
+        r.extract_keywords_from_text(resume_text)
+        resume_keywords = set(r.get_ranked_phrases())
+        match_count = len(job_keywords & resume_keywords)
+        keyword_score = int((match_count / len(job_keywords)) * 100) if job_keywords else 0
         tips = [
-            'Ensure keywords from the job description are in your resume.',
-            'Use clear headings and simple formatting for ATS compatibility.',
-            'Avoid graphics or tables that ATS may not parse.'
+            f"Add more keywords from the job description: {', '.join(job_keywords - resume_keywords)}"
         ]
-        if keyword_score < 60:
-            tips.append('Your resume needs more relevant keywords to match this job.')
-        conn.execute('INSERT INTO user_progress (user_id, task_type, task_description, completion_date, points) VALUES (?, ?, ?, ?, ?)',
-                     (user_id, 'ATS Insights', 'Analyzed resume for ATS compatibility', datetime.now().strftime('%Y-%m-%d'), 25))
-        conn.commit()
-        conn.close()
-        return render_template('ats_insights.html', keyword_score=keyword_score, tips=tips, job_description=job_description)
-    
     conn.close()
-    return render_template('ats_insights.html')
+    return render_template('ats_insights.html', keyword_score=keyword_score, tips=tips)
 @app.route('/become_mentor', methods=['GET', 'POST'], strict_slashes=False)
 @role_required('recruiter')
 def become_mentor():
