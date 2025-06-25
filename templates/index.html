@@ -5,15 +5,195 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <title>SkillSync - Internship Matcher</title>
+    <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            margin: 0;
+            background: linear-gradient(135deg, #e0e7ff 0%, #f8fafc 100%);
+            color: #22223b;
+        }
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.5rem 3vw;
+            background: linear-gradient(90deg, #4f8cff 0%, #6c63ff 100%);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(76, 81, 255, 0.08);
+        }
+        .logo {
+            height: 48px;
+        }
+        .nav {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+        .nav-link, .dropdown-button {
+            color: #fff;
+            text-decoration: none;
+            font-weight: 500;
+            background: none;
+            border: none;
+            font-size: 1rem;
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+        .nav-link:hover, .dropdown-button:hover {
+            background: rgba(255,255,255,0.12);
+        }
+        .dropdown {
+            position: relative;
+        }
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background: #fff;
+            min-width: 180px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+            z-index: 1;
+            right: 0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .dropdown-content a {
+            color: #22223b;
+            padding: 0.75rem 1.25rem;
+            text-decoration: none;
+            display: block;
+            font-size: 1rem;
+            transition: background 0.2s;
+        }
+        .dropdown-content a:hover {
+            background: #f1f5ff;
+        }
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+        .nav-welcome {
+            font-weight: 500;
+            margin-right: 1rem;
+        }
+        .hero {
+            text-align: center;
+            padding: 4rem 2vw 2rem 2vw;
+            background: linear-gradient(120deg, #6c63ff 0%, #4f8cff 100%);
+            color: #fff;
+        }
+        .hero h1 {
+            font-size: 2.8rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+        .hero p {
+            font-size: 1.3rem;
+            margin-bottom: 2rem;
+        }
+        .cta-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .cta-btn {
+            background: #fff;
+            color: #4f8cff;
+            font-weight: 700;
+            border: none;
+            border-radius: 6px;
+            padding: 0.9rem 2.2rem;
+            font-size: 1.1rem;
+            box-shadow: 0 2px 8px rgba(76, 81, 255, 0.08);
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+        }
+        .cta-btn:hover {
+            background: #e0e7ff;
+            color: #22223b;
+        }
+        .features-section {
+            padding: 3rem 2vw;
+            background: #f8fafc;
+        }
+        .features-section h2 {
+            text-align: center;
+            font-size: 2.1rem;
+            font-weight: 700;
+            margin-bottom: 2.5rem;
+        }
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .feature-card {
+            background: #fff;
+            border-radius: 14px;
+            box-shadow: 0 4px 24px rgba(76, 81, 255, 0.07);
+            padding: 2rem 1.5rem 1.5rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            min-height: 260px;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .feature-card:hover {
+            transform: translateY(-6px) scale(1.02);
+            box-shadow: 0 8px 32px rgba(76, 81, 255, 0.13);
+        }
+        .feature-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 0.7rem;
+            color: #4f8cff;
+        }
+        .feature-desc {
+            font-size: 1.05rem;
+            color: #22223b;
+            margin-bottom: 0.5rem;
+        }
+        .about-section, .contact-section {
+            max-width: 900px;
+            margin: 3rem auto;
+            padding: 2rem 2vw;
+            background: #fff;
+            border-radius: 14px;
+            box-shadow: 0 2px 12px rgba(76, 81, 255, 0.06);
+        }
+        .about-section h2, .contact-section h2 {
+            font-size: 1.7rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: #4f8cff;
+        }
+        .about-section p {
+            font-size: 1.1rem;
+            margin-bottom: 0.7rem;
+        }
+        .contact-section p {
+            font-size: 1.08rem;
+            margin-bottom: 0.3rem;
+        }
+        @media (max-width: 700px) {
+            .hero h1 { font-size: 2rem; }
+            .features-section h2 { font-size: 1.4rem; }
+            .about-section, .contact-section { padding: 1rem 2vw; }
+        }
+    </style>
 </head>
 <body>
     <header>
         <img src="{{ url_for('static', filename='logo.png') }}" alt="SkillSync Logo" class="logo">
         <nav class="nav">
-            <a href="#about" class="nav-link">About Us</a>
-            <a href="#features" class="nav-link">Features Offered</a>
-            <a href="#contact" class="nav-link">Contact Us</a>
+            <a href="#about" class="nav-link">About</a>
+            <a href="#features" class="nav-link">Features</a>
+            <a href="#contact" class="nav-link">Contact</a>
             {% if session['user_name'] %}
                 <span class="nav-welcome">Welcome, {{ session['user_name'] }}</span>
                 <a href="{{ url_for('logout') }}" class="nav-link">Logout</a>
@@ -40,37 +220,68 @@
 
     <section class="hero">
         <h1>Welcome to SkillSync</h1>
-        <p>Find the best internships tailored to your skills with just a few clicks!</p>
+        <p>AI-powered internship matching, resume enhancement, and career growth—tailored for you.</p>
+        <div class="cta-buttons">
+            <a href="{{ url_for('intern_signup') }}" class="cta-btn">Get Started as Intern</a>
+            <a href="{{ url_for('recruiter_signup') }}" class="cta-btn">Recruiter? Join Us</a>
+        </div>
     </section>
 
-    <section id="about" class="about">
+    <section id="features" class="features-section">
+        <h2>All-in-One Features for Interns &amp; Recruiters</h2>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-title">AI-Powered Internship Matching</div>
+                <div class="feature-desc">Get top 5 personalized internship recommendations based on your skills, experience, and preferences using advanced NLP and set-based matching.</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-title">ATS Insights &amp; Resume Enhancement</div>
+                <div class="feature-desc">Create and enhance ATS-friendly resumes. Get instant feedback and keyword analysis to boost your chances with recruiters.</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-title">Mock Interview with AI Feedback</div>
+                <div class="feature-desc">Practice interviews and receive real-time, AI-generated feedback on your answers to improve your performance.</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-title">Soft Skills Assessment</div>
+                <div class="feature-desc">Evaluate and improve your soft skills with interactive assessments and actionable feedback.</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-title">Mentorship &amp; Chat</div>
+                <div class="feature-desc">Connect with industry mentors, request guidance, and chat in real-time to accelerate your career growth.</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-title">Gamification &amp; Leaderboard</div>
+                <div class="feature-desc">Earn points, unlock achievements, and climb the leaderboard as you progress through applications, interviews, and learning milestones.</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-title">Micro-Credentials &amp; Digital Badges</div>
+                <div class="feature-desc">Showcase your skills and achievements with verifiable micro-credentials and digital certificates.</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-title">Privacy &amp; Data Control</div>
+                <div class="feature-desc">Your data is secure. Download or delete your information anytime. Full GDPR compliance and transparent privacy policy.</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-title">Recruiter Dashboard</div>
+                <div class="feature-desc">Post internships, view applicants, rate resumes, and manage your talent pipeline with ease.</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-title">Intern Dashboard</div>
+                <div class="feature-desc">Track your applications, progress, feedback, and access all SkillSync features from a single, intuitive dashboard.</div>
+            </div>
+        </div>
+    </section>
+
+    <section id="about" class="about-section">
         <h2>About SkillSync</h2>
-        <p>
-            SkillSync is an intelligent platform designed to simplify the internship search process. 
-            By analyzing your skills and matching them with internship requirements, we provide you with 
-            the top 5 internships that best suit your profile. With our advanced algorithm, we calculate 
-            the probability of success for each internship, helping you make informed decisions.
-        </p>
-        <p>
-            Whether you're a student looking for your first internship or a professional seeking new opportunities, 
-            SkillSync makes the process seamless and efficient.
-        </p>
+        <p>SkillSync is a next-generation platform designed to bridge the gap between talented interns and forward-thinking recruiters. Our intelligent algorithms analyze your skills, experience, and preferences to match you with the best internship opportunities—maximizing your chances of success.</p>
+        <p>Whether you're a student, a recent graduate, or a recruiter seeking top talent, SkillSync offers a seamless, secure, and engaging experience for all users.</p>
     </section>
 
-    <section id="features" class="features">
-        <h2>Features We Offer</h2>
-        <ul>
-            <li>AI-powered internship matching based on your skills and preferences.</li>
-            <li>Top 5 internship recommendations with success probability scores.</li>
-            <li>Easy-to-use ATS-friendly resume creation tool.</li>
-            <li>Real-time updates on applied internships and recruiter feedback.</li>
-            <li>Secure and user-friendly platform for both interns and recruiters.</li>
-        </ul>
-    </section>
-
-    <section id="contact" class="contact">
+    <section id="contact" class="contact-section">
         <h2>Contact Us</h2>
-        <p>Email: support@skillsync.com</p>
+        <p>Email: <a href="mailto:support@skillsync.com">support@skillsync.com</a></p>
         <p>Phone: +91-9063975451</p>
         <p>Address: Yelahanka, Bengaluru</p>
     </section>
