@@ -21,10 +21,15 @@
             padding: 1.5rem 3vw;
             background: linear-gradient(90deg, #00796b 0%, #26a69a 100%);
             color: #fff;
-            box-shadow: 0 2px 8px rgba(76, 81, 255, 0.08);
+            box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+            border-bottom-left-radius: 24px;
+            border-bottom-right-radius: 24px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
-        .logo {
-            height: 48px;
+        main {
+            margin-top: 0;
         }
         .nav {
             display: flex;
@@ -41,57 +46,41 @@
             cursor: pointer;
             padding: 0.5rem 1rem;
             border-radius: 6px;
-            transition: background 0.2s;
+            transition: background 0.2s, color 0.2s;
         }
         .nav-link:hover, .dropdown-button:hover {
-            background: rgba(255,255,255,0.12);
-        }
-        .dropdown {
-            position: relative;
+            background: rgba(255,255,255,0.18);
+            color: #00796b;
         }
         .dropdown-content {
-            display: none;
-            position: absolute;
             background: #fff;
-            min-width: 180px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
-            z-index: 1;
-            right: 0;
-            border-radius: 8px;
-            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.10);
         }
         .dropdown-content a {
-            color: #22223b;
-            padding: 0.75rem 1.25rem;
-            text-decoration: none;
-            display: block;
-            font-size: 1rem;
-            transition: background 0.2s;
+            color: #00796b;
         }
         .dropdown-content a:hover {
             background: #e0f7fa;
-        }
-        .dropdown:hover .dropdown-content {
-            display: block;
-        }
-        .nav-welcome {
-            font-weight: 500;
-            margin-right: 1rem;
         }
         .hero {
             text-align: center;
             padding: 4rem 2vw 2rem 2vw;
             background: linear-gradient(120deg, #00796b 0%, #26a69a 100%);
             color: #fff;
+            border-radius: 0 0 32px 32px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.07);
+            margin-bottom: 2.5rem;
         }
         .hero h1 {
             font-size: 2.8rem;
             font-weight: 700;
             margin-bottom: 1rem;
+            letter-spacing: 1px;
         }
         .hero p {
             font-size: 1.3rem;
             margin-bottom: 2rem;
+            opacity: 0.95;
         }
         .cta-buttons {
             display: flex;
@@ -104,16 +93,17 @@
             color: #00796b;
             font-weight: 700;
             border: none;
-            border-radius: 6px;
-            padding: 0.9rem 2.2rem;
-            font-size: 1.1rem;
-            box-shadow: 0 2px 8px rgba(76, 81, 255, 0.08);
+            border-radius: 8px;
+            padding: 1rem 2.5rem;
+            font-size: 1.15rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             cursor: pointer;
-            transition: background 0.2s, color 0.2s;
+            transition: background 0.2s, color 0.2s, box-shadow 0.2s;
         }
         .cta-btn:hover {
             background: #e0f7fa;
-            color: #22223b;
+            color: #00796b;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.13);
         }
         .features-section {
             padding: 3rem 2vw;
@@ -124,6 +114,7 @@
             font-size: 2.1rem;
             font-weight: 700;
             margin-bottom: 2.5rem;
+            color: #00796b;
         }
         .features-grid {
             display: grid;
@@ -134,18 +125,20 @@
         }
         .feature-card {
             background: #fff;
-            border-radius: 14px;
-            box-shadow: 0 4px 24px rgba(76, 81, 255, 0.07);
+            border-radius: 18px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.07);
             padding: 2rem 1.5rem 1.5rem 1.5rem;
             display: flex;
             flex-direction: column;
             align-items: flex-start;
             min-height: 260px;
             transition: transform 0.15s, box-shadow 0.15s;
+            border: 1.5px solid #e0f7fa;
         }
         .feature-card:hover {
             transform: translateY(-6px) scale(1.02);
-            box-shadow: 0 8px 32px rgba(76, 81, 255, 0.13);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.13);
+            border-color: #26a69a;
         }
         .feature-title {
             font-size: 1.25rem;
@@ -163,8 +156,8 @@
             margin: 3rem auto;
             padding: 2rem 2vw;
             background: #fff;
-            border-radius: 14px;
-            box-shadow: 0 2px 12px rgba(76, 81, 255, 0.06);
+            border-radius: 18px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
         }
         .about-section h2, .contact-section h2 {
             font-size: 1.7rem;
@@ -184,6 +177,7 @@
             .hero h1 { font-size: 2rem; }
             .features-section h2 { font-size: 1.4rem; }
             .about-section, .contact-section { padding: 1rem 2vw; }
+            header { border-radius: 0 0 18px 18px; }
         }
     </style>
 </head>
