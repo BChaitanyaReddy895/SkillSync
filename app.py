@@ -21,6 +21,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 from functools import wraps
 from collections import Counter
+from transformers import pipeline
 
 # Configure logging
 log_dir = "/tmp/logs"
@@ -1423,23 +1424,18 @@ def mock_interview():
         {'id': 3, 'question': 'Why are you interested in this internship?', 'category': 'General'}
     ]
     
+    feedback = None
     if request.method == 'POST':
         question_id = int(request.form.get('question_id'))
         response = request.form.get('response')
-        # Mock NLP feedback (replace with actual NLP API in production)
-        feedback = "Your response is clear, but consider adding specific examples to strengthen your answer."
-        conn.execute('INSERT INTO interview_feedback (user_id, question, response, feedback, date) VALUES (?, ?, ?, ?, ?)',
-                     (user_id, questions[question_id-1]['question'], response, feedback, datetime.now().strftime('%Y-%m-%d')))
-        conn.execute('INSERT INTO user_progress (user_id, task_type, task_description, completion_date, points) VALUES (?, ?, ?, ?, ?)',
-                     (user_id, 'Mock Interview', 'Completed mock interview question', datetime.now().strftime('%Y-%m-%d'), 25))
-        conn.commit()
-        conn.close()
-        flash('Response submitted successfully!', 'success')
-        return redirect(url_for('mock_interview'))
-    
+        # Use Hugging Face NLP for feedback
+        nlp_result = feedback_nlp(response)
+        feedback = f"AI Feedback: {nlp_result[0]['label']} (confidence: {nlp_result[0]['score']:.2f})"
+        # Optionally, store feedback in DB here
+
     feedback_history = conn.execute('SELECT * FROM interview_feedback WHERE user_id = ?', (user_id,)).fetchall()
     conn.close()
-    return render_template('mock_interview.html', questions=questions, feedback_history=feedback_history)
+    return render_template('mock_interview.html', questions=questions, feedback_history=feedback_history, feedback=feedback)
 @app.route('/ats_insights', methods=['GET', 'POST'], strict_slashes=False)
 @role_required('intern')
 def ats_insights():
