@@ -198,6 +198,11 @@
                     <p><strong>Date:</strong> {{ feedback.date }}</p>
                 </div>
             {% endfor %}
+            {% if feedback %}
+                <div class="feedback-block">
+                    <strong>{{ feedback }}</strong>
+                </div>
+            {% endif %}
             <a href="{{ url_for('intern_dashboard') }}" class="back-link">Back to Dashboard</a>
         </div>
     </div>
