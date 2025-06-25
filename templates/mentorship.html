@@ -1,32 +1,205 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Mentorship Hub</title>
+    <meta charset="UTF-8">
+    <title>Mentorship Hub - SkillSync</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(120deg, #e0f7fa 0%, #f4f4f9 100%);
+            min-height: 100vh;
+        }
+        header {
+            background-color: #00796b;
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        header img {
+            height: 50px;
+        }
+        nav a {
+            color: white;
+            text-decoration: none;
+            font-size: 16px;
+            padding: 8px 16px;
+            border: 1px solid white;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+        nav a:hover {
+            background-color: white;
+            color: #00796b;
+        }
+        .container {
+            padding: 20px;
+            max-width: 600px;
+            margin: 40px auto;
+        }
+        .card {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+            padding: 32px 24px 24px 24px;
+            margin-bottom: 24px;
+        }
+        h1 {
+            color: #00796b;
+            text-align: center;
+            margin-bottom: 24px;
+            font-size: 2rem;
+        }
+        h2 {
+            color: #333;
+            margin-bottom: 16px;
+        }
+        .mentor-block {
+            background: #f9fbe7;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            padding: 16px;
+            margin-bottom: 18px;
+        }
+        .mentor-block strong {
+            color: #00796b;
+        }
+        .mentor-block form {
+            margin-top: 8px;
+        }
+        .mentor-block textarea {
+            width: 100%;
+            min-height: 60px;
+            padding: 8px;
+            font-size: 1rem;
+            border: 1px solid #bdbdbd;
+            border-radius: 6px;
+            background: #fafafa;
+            margin-bottom: 8px;
+            resize: vertical;
+            transition: border-color 0.2s;
+        }
+        .mentor-block textarea:focus {
+            border-color: #00796b;
+            outline: none;
+        }
+        .mentor-block button {
+            background: linear-gradient(90deg, #00796b 60%, #26a69a 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 22px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .mentor-block button:hover {
+            background: linear-gradient(90deg, #005a4f 60%, #00796b 100%);
+        }
+        .request-block {
+            background: #e3f2fd;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            padding: 14px;
+            margin-bottom: 14px;
+        }
+        .request-block strong {
+            color: #00796b;
+        }
+        .flash-messages {
+            margin: 10px 0 18px 0;
+        }
+        .flash-messages .success {
+            color: #2e7d32;
+            background: #e8f5e9;
+            border-left: 4px solid #2e7d32;
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin-bottom: 6px;
+        }
+        .flash-messages .error, .flash-messages .danger {
+            color: #c62828;
+            background: #ffebee;
+            border-left: 4px solid #c62828;
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin-bottom: 6px;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 18px;
+            color: #00796b;
+            text-decoration: none;
+            font-weight: 500;
+            border: 1px solid #00796b;
+            border-radius: 5px;
+            padding: 8px 16px;
+            transition: background 0.2s, color 0.2s;
+        }
+        .back-link:hover {
+            background: #00796b;
+            color: white;
+        }
+        @media (max-width: 700px) {
+            .container {
+                max-width: 98vw;
+                padding: 8px 2vw;
+            }
+            .card, .mentor-block, .request-block {
+                max-width: 100%;
+                padding: 15px;
+            }
+        }
+    </style>
 </head>
 <body>
-    <h1>Mentorship Hub</h1>
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }}">{{ message }}</div>
+    <header>
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="SkillSync Logo">
+        <nav>
+            <a href="{{ url_for('intern_dashboard') }}">Back to Dashboard</a>
+        </nav>
+    </header>
+    <div class="container">
+        <div class="card">
+            <h1>Mentorship Hub</h1>
+            <div class="flash-messages">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+            </div>
+            <h2>Available Mentors</h2>
+            {% for mentor in mentors %}
+                <div class="mentor-block">
+                    <p><strong>{{ mentor.name }}</strong> ({{ mentor.industry }})<br>
+                    Skills: {{ mentor.skills }}<br>
+                    Availability: {{ mentor.availability }}</p>
+                    <form method="POST">
+                        <input type="hidden" name="mentor_id" value="{{ mentor.mentor_id }}">
+                        <textarea name="message" placeholder="Introduce yourself and explain why you'd like this mentor." required></textarea>
+                        <button type="submit">Request Mentorship</button>
+                    </form>
+                </div>
             {% endfor %}
-        {% endif %}
-    {% endwith %}
-    <h2>Available Mentors</h2>
-    {% for mentor in mentors %}
-        <p><strong>{{ mentor.name }}</strong> ({{ mentor.industry }}) - Skills: {{ mentor.skills }} - Availability: {{ mentor.availability }}</p>
-        <form method="POST">
-            <input type="hidden" name="mentor_id" value="{{ mentor.mentor_id }}">
-            <textarea name="message" placeholder="Introduce yourself and explain why you'd like this mentor." required></textarea><br>
-            <button type="submit">Request Mentorship</button>
-        </form>
-        <hr>
-    {% endfor %}
-    <h2>Your Requests</h2>
-    {% for request in requests %}
-        <p><strong>Mentor:</strong> {{ request.name }} - <strong>Status:</strong> {{ request.status }} - <strong>Message:</strong> {{ request.message }}</p>
-        <hr>
-    {% endfor %}
-    <a href="{{ url_for('intern_dashboard') }}">Back to Dashboard</a>
+            <h2>Your Requests</h2>
+            {% for request in requests %}
+                <div class="request-block">
+                    <p><strong>Mentor:</strong> {{ request.name }}<br>
+                    <strong>Status:</strong> {{ request.status }}<br>
+                    <strong>Message:</strong> {{ request.message }}</p>
+                </div>
+            {% endfor %}
+            <a href="{{ url_for('intern_dashboard') }}" class="back-link">Back to Dashboard</a>
+        </div>
+    </div>
 </body>
 </html>
