@@ -24,6 +24,8 @@ from collections import Counter
 from transformers import pipeline
 from rake_nltk import Rake
 
+# Set Hugging Face cache directory to a writable location
+os.environ['TRANSFORMERS_CACHE'] = os.getenv('TRANSFORMERS_CACHE', '/tmp/hf_cache')
 # Configure logging
 log_dir = "/tmp/logs"
 os.makedirs(log_dir, exist_ok=True)
