@@ -9,7 +9,7 @@ import sqlite3
 import os
 import logging
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+from datetime import datetime, timedelta
 import re
 import secrets
 import hashlib
@@ -23,9 +23,11 @@ from functools import wraps
 from collections import Counter
 from transformers import pipeline
 from rake_nltk import Rake
+import requests
 
 # Set Hugging Face cache directory to a writable location
 os.environ['TRANSFORMERS_CACHE'] = os.getenv('TRANSFORMERS_CACHE', '/tmp/hf_cache')
+
 # Configure logging
 log_dir = "/tmp/logs"
 os.makedirs(log_dir, exist_ok=True)
@@ -570,19 +572,22 @@ def intern_dashboard():
     applied_internship_ids = [app['internship_id'] for app in applications]
     user_skills = preprocess_skills(resume['skills'])
     internships = []
+    one_month_ago = datetime.now() - timedelta(days=30)
     for idx, internship in internship_df.iterrows():
+        # Only show internships posted within the last month
+        posted_date = internship.get('posted_date')
+        if posted_date:
+            try:
+                posted_dt = datetime.strptime(posted_date[:10], '%Y-%m-%d')
+                if posted_dt < one_month_ago:
+                    continue
+            except Exception:
+                continue
         similarity = jaccard_similarity(user_skills, internship['processed_Required_Skills'])
         if similarity > 0:
             internships.append({
-                'id': internship['id'],
-                'role': internship['role'],
-                'company_name': internship['company_name'],
-                'description': internship['description_of_internship'],
-                'duration': internship['duration'],
-                'type_of_internship': internship['type_of_internship'],
-                'skills_required': internship['skills_required'],
-                'location': internship['location'],
-                'similarity_score': round(similarity * 100, 2)
+                **internship,
+                'similarity_score': int(similarity * 100)
             })
     internships = sorted(internships, key=lambda x: x['similarity_score'], reverse=True)
     total_points = sum(p['points'] for p in progress) if progress else 0
@@ -774,6 +779,27 @@ def resume_enhance():
     conn.close()
     return render_template('resume_enhance.html', resume=resume)
 
+# Helper: Get real-world course recommendations for missing skills
+# Uses Coursera and Udemy APIs (or public endpoints)
+def get_course_links(skill):
+    courses = []
+    # Coursera API (public search)
+    try:
+        resp = requests.get(f'https://www.coursera.org/search?query={skill}')
+        if resp.status_code == 200:
+            courses.append(f'<a href="https://www.coursera.org/search?query={skill}" target="_blank">Coursera: {skill.title()}</a>')
+    except Exception:
+        pass
+    # Udemy API (public search)
+    try:
+        resp = requests.get(f'https://www.udemy.com/courses/search/?q={skill}')
+        if resp.status_code == 200:
+            courses.append(f'<a href="https://www.udemy.com/courses/search/?q={skill}" target="_blank">Udemy: {skill.title()}</a>')
+    except Exception:
+        pass
+    # Add more providers as needed
+    return courses if courses else [f'No course found for {skill}']
+
 @app.route('/skill_gap', strict_slashes=False)
 @role_required('intern')
 def skill_gap():
@@ -789,20 +815,27 @@ def skill_gap():
         return redirect(url_for('create_resume'))
     user_skills = set(preprocess_skills(resume['skills']))
     skill_gaps = []
-    course_recommendations = {
-        'python': 'Coursera: Python for Everybody',
-        'javascript': 'Udemy: JavaScript Bootcamp',
-        'sql': 'Khan Academy: Intro to SQL'
-    }
+    one_month_ago = datetime.now() - timedelta(days=30)
     for idx, internship in internship_df.iterrows():
+        posted_date = internship.get('posted_date')
+        if posted_date:
+            try:
+                posted_dt = datetime.strptime(posted_date[:10], '%Y-%m-%d')
+                if posted_dt < one_month_ago:
+                    continue
+            except Exception:
+                continue
         required_skills = set(internship['processed_Required_Skills'])
         gaps = required_skills - user_skills
         if gaps:
+            courses = []
+            for skill in gaps:
+                courses.extend(get_course_links(skill))
             skill_gaps.append({
                 'role': internship['role'],
                 'company': internship['company_name'],
                 'missing_skills': list(gaps),
-                'courses': [course_recommendations.get(skill, f'Search for {skill} courses') for skill in gaps]
+                'courses': courses
             })
     conn.close()
     return render_template('skill_gap.html', skill_gaps=skill_gaps)
