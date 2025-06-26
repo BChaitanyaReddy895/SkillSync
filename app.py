@@ -25,6 +25,7 @@ from transformers import pipeline
 from rake_nltk import Rake
 import requests
 from markupsafe import Markup
+import pdfplumber
 
 # Set Hugging Face cache directory to a writable location
 os.environ['TRANSFORMERS_CACHE'] = os.getenv('TRANSFORMERS_CACHE', '/tmp/hf_cache')
@@ -381,6 +382,31 @@ def role_required(role):
         return decorated_function
     return decorator
 
+# Helper: Extract skills from resume PDF
+SKILL_KEYWORDS = [
+    'python', 'java', 'c++', 'javascript', 'sql', 'html', 'css', 'react', 'node', 'django', 'flask', 'machine learning',
+    'deep learning', 'tensorflow', 'pytorch', 'nlp', 'data analysis', 'excel', 'powerpoint', 'communication', 'leadership',
+    'teamwork', 'problem solving', 'project management', 'cloud', 'aws', 'azure', 'git', 'linux', 'docker', 'kubernetes',
+    'postgresql', 'mongodb', 'opencv', 'pandas', 'numpy', 'scikit-learn', 'r', 'matlab', 'public speaking', 'creativity'
+]
+def extract_skills_from_text(text):
+    text = text.lower()
+    found = set()
+    for skill in SKILL_KEYWORDS:
+        if re.search(r'\b' + re.escape(skill) + r'\b', text):
+            found.add(skill)
+    return ', '.join(sorted(found))
+
+def extract_skills_from_pdf(pdf_path):
+    try:
+        with pdfplumber.open(pdf_path) as pdf:
+            text = ''
+            for page in pdf.pages:
+                text += page.extract_text() + '\n'
+        return extract_skills_from_text(text)
+    except Exception as e:
+        return ''
+
 # Routes
 @app.route('/', strict_slashes=False)
 def index():
@@ -642,28 +668,21 @@ def upload_resume():
         file = request.files['resume']
         skills = request.form.get('skills')
         if file and file.filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS:
-            user_id = session['user_id']
-            os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-            filename = f"{user_id}_resume.pdf"
+            filename = f"{session['user_id']}_resume.pdf"
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(file_path)
+            # Extract skills from PDF
+            extracted_skills = extract_skills_from_pdf(file_path)
+            # Use extracted skills if found, else fallback to user input
+            final_skills = extracted_skills if extracted_skills else skills
+            # Update resume_info and users table
             conn = get_db_connection()
-            if not conn:
-                flash('Database error.', 'danger')
-                return render_template('upload_resume.html')
-            existing_resume = conn.execute('SELECT * FROM resume_info WHERE user_id = ?', (user_id,)).fetchone()
-            if existing_resume:
-                conn.execute('UPDATE resume_info SET resume_path = ?, skills = ? WHERE user_id = ?', (file_path, skills, user_id))
-            else:
-                conn.execute('INSERT INTO resume_info (user_id, resume_path, skills) VALUES (?, ?, ?)', (user_id, file_path, skills))
-            conn.commit()
-            conn.execute('INSERT INTO user_progress (user_id, task_type, task_description, completion_date, points) VALUES (?, ?, ?, ?, ?)',
-                         (user_id, 'Resume Upload', 'Uploaded resume', datetime.now().strftime('%Y-%m-%d'), 50))
-            conn.commit()
-            conn.close()
-            global resume_df, internship_df
-            resume_df, internship_df = fetch_data()
-            flash('Resume uploaded successfully!', 'success')
+            if conn:
+                conn.execute('UPDATE resume_info SET resume_path = ?, skills = ? WHERE user_id = ?', (file_path, final_skills, session['user_id']))
+                conn.execute('UPDATE users SET skills = ? WHERE user_id = ?', (final_skills, session['user_id']))
+                conn.commit()
+                conn.close()
+            flash('Resume uploaded and skills updated successfully!', 'success')
             return redirect(url_for('intern_dashboard'))
         flash('Allowed file types are PDF only.', 'danger')
     return render_template('upload_resume.html')
@@ -671,8 +690,12 @@ def upload_resume():
 @app.route('/create_resume', methods=['GET', 'POST'], strict_slashes=False)
 @role_required('intern')
 def create_resume():
+    user_id = session['user_id']
+    conn = get_db_connection()
+    user = conn.execute('SELECT * FROM users WHERE user_id = ?', (user_id,)).fetchone() if conn else None
+    ats_resume = None
+    ats_resume_path = None
     if request.method == 'POST':
-        user_id = session['user_id']
         name = request.form['name']
         email = request.form['email']
         phone = request.form['phone']
@@ -681,34 +704,30 @@ def create_resume():
         education = request.form.get('education')
         certifications = request.form.get('certifications')
         achievements = request.form.get('achievements')
-        conn = get_db_connection()
-        if not conn:
-            flash('Database error.', 'danger')
-            return render_template('create_resume.html')
-        existing_resume = conn.execute('SELECT * FROM resume_info WHERE user_id = ?', (user_id,)).fetchone()
-        if existing_resume:
-            conn.execute('''
-                UPDATE resume_info SET name_of_applicant = ?, email = ?, phone_number = ?, skills = ?,
-                experience = ?, education = ?, certifications = ?, achievements = ?
-                WHERE user_id = ?
-            ''',
-            (name, email, phone, skills, experience, education, certifications, achievements, user_id))
-        else:
-            conn.execute('''
-                INSERT INTO resume_info (user_id, name_of_applicant, email, phone_number,
-                skills, experience, education, certifications, achievements, downloaded)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''',
-            (user_id, name, email, phone, skills, experience, education, certifications, achievements, 0))
-        conn.execute('INSERT INTO user_progress (user_id, task_type, task_description, completion_date, points) VALUES (?, ?, ?, ?, ?)',
-                     (user_id, 'Resume Creation', 'Created ATS-friendly resume', datetime.now().strftime('%Y-%m-%d'), 100))
-        conn.commit()
-        conn.close()
-        global resume_df, internship_df
-        resume_df, internship_df = fetch_data()
-        flash('Resume created successfully!', 'success')
-        return redirect(url_for('intern_dashboard'))
-    return render_template('create_resume.html')
+        # Build ATS resume text
+        ats_resume = f"""Name: {name}\nEmail: {email}\nPhone: {phone}\nSkills: {skills}\nExperience: {experience}\nEducation: {education}\nCertifications: {certifications}\nAchievements: {achievements}"""
+        # Save ATS resume as .txt for download
+        ats_resume_path = f"static/uploads/{user_id}_ats_resume.txt"
+        with open(ats_resume_path, 'w', encoding='utf-8') as f:
+            f.write(ats_resume)
+        # Update resume_info and users table
+        if conn:
+            existing_resume = conn.execute('SELECT * FROM resume_info WHERE user_id = ?', (user_id,)).fetchone()
+            if existing_resume:
+                conn.execute('''
+                    UPDATE resume_info SET name_of_applicant=?, email=?, phone_number=?, skills=?, experience=?, education=?, certifications=?, achievements=?, resume_path=? WHERE user_id=?
+                ''', (name, email, phone, skills, experience, education, certifications, achievements, ats_resume_path, user_id))
+            else:
+                conn.execute('''
+                    INSERT INTO resume_info (user_id, name_of_applicant, email, phone_number, skills, experience, education, certifications, achievements, resume_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (user_id, name, email, phone, skills, experience, education, certifications, achievements, ats_resume_path))
+            # Update user skills in users table
+            conn.execute('UPDATE users SET skills = ? WHERE user_id = ?', (skills, user_id))
+            conn.commit()
+            conn.close()
+        flash('ATS resume created and skills updated successfully!', 'success')
+        return render_template('create_resume.html', user=user, ats_resume=ats_resume, ats_resume_path=ats_resume_path)
+    return render_template('create_resume.html', user=user, ats_resume=ats_resume, ats_resume_path=ats_resume_path)
 
 @app.route('/edit_resume', methods=['GET', 'POST'], strict_slashes=False)
 @role_required('intern')
