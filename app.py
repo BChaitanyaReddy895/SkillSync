@@ -601,7 +601,6 @@ def intern_dashboard():
     internships = []
     one_month_ago = datetime.now() - timedelta(days=30)
     for idx, internship in internship_df.iterrows():
-        # Only show internships posted within the last month
         posted_date = internship.get('posted_date')
         if posted_date:
             try:
@@ -619,7 +618,9 @@ def intern_dashboard():
     internships = sorted(internships, key=lambda x: x['similarity_score'], reverse=True)
     total_points = sum(p['points'] for p in progress) if progress else 0
     level = total_points // 100
-    return render_template('intern_dashboard.html', user_name=session['user_name'], internships=internships, applied_internship_ids=applied_internship_ids, total_points=total_points, level=level)
+    # Check if resume is uploaded for apply button logic
+    resume_uploaded = bool(resume and resume.get('resume_path'))
+    return render_template('intern_dashboard.html', user_name=session['user_name'], internships=internships, applied_internship_ids=applied_internship_ids, total_points=total_points, level=level, resume_uploaded=resume_uploaded)
 
 @app.route('/register_internship', methods=['GET', 'POST'], strict_slashes=False)
 @role_required('recruiter')
@@ -757,6 +758,8 @@ def edit_resume():
                    WHERE user_id = ?
         ''',
         (name, email, phone, skills, experience, education, certifications, achievements, user_id))
+        # Update user skills in users table
+        conn.execute('UPDATE users SET skills = ? WHERE user_id = ?', (skills, user_id))
         conn.commit()
         conn.close()
         global resume_df, internship_df
@@ -1111,6 +1114,11 @@ def apply_internship(internship_id):
     conn = get_db_connection()
     if not conn:
         flash('Database error.', 'danger')
+        return redirect(url_for('intern_dashboard'))
+    resume = conn.execute('SELECT * FROM resume_info WHERE user_id = ?', (user_id,)).fetchone()
+    if not resume or not resume.get('resume_path'):
+        conn.close()
+        flash('Please upload your resume before applying to internships!', 'danger')
         return redirect(url_for('intern_dashboard'))
     internship = conn.execute('SELECT * FROM internship_info WHERE id = ?', (internship_id,)).fetchone()
     if not internship:
