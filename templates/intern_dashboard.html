@@ -220,7 +220,7 @@
             <a href="{{ url_for('soft_skills_assessment') }}" class="button">Soft Skills Assessment</a>
             <a href="{{ url_for('mentorship') }}" class="button">Mentorship</a>
             <a href="{{ url_for('leaderboard') }}" class="button">Leaderboard</a>
-          
+            <a href="{{ url_for('micro_credentials') }}" class="button">Micro-Credentials</a>
             <button id="voice-command-btn" type="button" class="button">Voice Command</button>
         </div>
         <h2>Matched Internships</h2>
@@ -237,9 +237,14 @@
                         {% if internship.id in applied_internship_ids %}
                             <span class="applied-label">Applied</span>
                         {% else %}
-                            <form action="{{ url_for('apply_internship', internship_id=internship.id) }}" method="POST">
-                                <button type="submit" class="apply-button">Apply</button>
-                            </form>
+                            {% if resume_uploaded %}
+                                <form action="{{ url_for('apply_internship', internship_id=internship.id) }}" method="POST">
+                                    <button type="submit" class="apply-button">Apply</button>
+                                </form>
+                            {% else %}
+                                <button class="apply-button" disabled title="Upload your resume to apply">Apply</button>
+                                <div style="color:#c62828;font-size:0.98em;margin-top:4px;">Upload your resume before applying.</div>
+                            {% endif %}
                         {% endif %}
                     {% endif %}
                 </div>
