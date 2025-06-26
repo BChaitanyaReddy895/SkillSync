@@ -224,6 +224,9 @@
             <button id="voice-command-btn" type="button" class="button">Voice Command</button>
         </div>
         <h2>Matched Internships</h2>
+        <div style="margin-bottom:12px;color:#00796b;font-size:1.08em;font-weight:500;">
+            <span>Note: Only internships with a <b>similarity score above 75%</b> are eligible for application. Upload your resume to enable the Apply button.</span>
+        </div>
         {% if internships %}
             {% for internship in internships %}
                 <div class="internship">
@@ -246,6 +249,9 @@
                                 <div style="color:#c62828;font-size:0.98em;margin-top:4px;">Upload your resume before applying.</div>
                             {% endif %}
                         {% endif %}
+                    {% else %}
+                        <button class="apply-button" disabled title="Similarity score too low">Apply</button>
+                        <div style="color:#c62828;font-size:0.98em;margin-top:4px;">Similarity score must be above 75% to apply.</div>
                     {% endif %}
                 </div>
             {% endfor %}
