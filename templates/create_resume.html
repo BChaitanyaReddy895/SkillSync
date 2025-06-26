@@ -194,24 +194,31 @@
             <label for="phone">Phone Number</label>
             <input type="text" id="phone" name="phone" placeholder="Enter your phone number">
 
-            <label for="skills">Skills</label>
-            <textarea id="skills" name="skills" placeholder="Enter your skills (e.g., Python, Data Analysis)" rows="4" required></textarea>
+            <label for="skills">Skills <span style="color:#888;font-size:0.95em;">(comma-separated, e.g., Python, Data Analysis)</span></label>
+            <textarea id="skills" name="skills" placeholder="e.g., Python, Data Analysis, Communication" rows="3" required>{{ user.skills if user else '' }}</textarea>
 
-            <label for="experience">Work Experience</label>
-            <textarea id="experience" name="experience" placeholder="Enter your work experience (e.g., Job Title, Company, Responsibilities)" rows="6" required></textarea>
+            <label for="experience">Work Experience <span style="color:#888;font-size:0.95em;">(e.g., Job Title, Company, Responsibilities)</span></label>
+            <textarea id="experience" name="experience" placeholder="e.g., Software Intern, XYZ Corp, Developed ML models" rows="5" required></textarea>
 
-            <label for="education">Education</label>
-            <textarea id="education" name="education" placeholder="Enter your educational qualifications (e.g., Degree, Institution, Year)" rows="4" required></textarea>
+            <label for="education">Education <span style="color:#888;font-size:0.95em;">(e.g., Degree, Institution, Year)</span></label>
+            <textarea id="education" name="education" placeholder="e.g., B.S. Computer Science, MIT, 2024" rows="3" required></textarea>
 
-            <label for="certifications">Certifications (Optional)</label>
-            <textarea id="certifications" name="certifications" placeholder="Enter any certifications (e.g., AWS Certified, PMP)" rows="2"></textarea>
+            <label for="certifications">Certifications <span style="color:#888;font-size:0.95em;">(Optional)</span></label>
+            <textarea id="certifications" name="certifications" placeholder="e.g., AWS Certified Developer" rows="2"></textarea>
 
-            <label for="achievements">Achievements (Optional)</label>
-            <textarea id="achievements" name="achievements" placeholder="Enter any achievements (e.g., Employee of the Month, Hackathon Winner)" rows="2"></textarea>
+            <label for="achievements">Achievements <span style="color:#888;font-size:0.95em;">(Optional)</span></label>
+            <textarea id="achievements" name="achievements" placeholder="e.g., Hackathon Winner, Published Paper" rows="2"></textarea>
 
             <button type="submit">Create Resume</button>
             <a href="{{ url_for('intern_dashboard') }}" class="cancel-link">Cancel</a>
         </form>
+        {% if ats_resume %}
+        <div style="margin-top:32px;text-align:center;">
+            <h2 style="color:#00796b;">Your ATS-Friendly Resume</h2>
+            <pre style="background:#f4f4f9;padding:18px;border-radius:8px;text-align:left;overflow-x:auto;">{{ ats_resume }}</pre>
+            <a href="{{ url_for('download_resume', resume_path=ats_resume_path) }}" class="button" style="margin-top:12px;">Download ATS Resume</a>
+        </div>
+        {% endif %}
     </div>
 </body>
 </html>
