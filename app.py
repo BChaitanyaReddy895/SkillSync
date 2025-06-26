@@ -1125,6 +1125,14 @@ def apply_internship(internship_id):
         conn.close()
         flash('Internship not found.', 'danger')
         return redirect(url_for('intern_dashboard'))
+    # Check similarity score before allowing application
+    user_skills = preprocess_skills(resume['skills'])
+    required_skills = preprocess_skills(internship['skills_required'])
+    similarity = jaccard_similarity(user_skills, required_skills)
+    if similarity * 100 <= 75:
+        conn.close()
+        flash('You can only apply to internships with a similarity score above 75%.', 'danger')
+        return redirect(url_for('intern_dashboard'))
     existing_application = conn.execute('SELECT * FROM applications WHERE user_id = ? AND internship_id = ?', (user_id, internship_id)).fetchone()
     if existing_application:
         conn.close()
@@ -1132,6 +1140,7 @@ def apply_internship(internship_id):
         return redirect(url_for('intern_dashboard'))
     conn.execute('INSERT INTO applications (user_id, internship_id, applied_at) VALUES (?, ?, ?)', 
                  (user_id, internship_id, datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+    # Update progress tracker
     conn.execute('INSERT INTO user_progress (user_id, task_type, task_description, completion_date, points) VALUES (?, ?, ?, ?, ?)',
                  (user_id, 'Application', f'Applied to {internship["role"]}', datetime.now().strftime('%Y-%m-%d'), 50))
     conn.commit()
