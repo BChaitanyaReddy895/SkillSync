@@ -24,6 +24,7 @@ from collections import Counter
 from transformers import pipeline
 from rake_nltk import Rake
 import requests
+from markupsafe import Markup
 
 # Set Hugging Face cache directory to a writable location
 os.environ['TRANSFORMERS_CACHE'] = os.getenv('TRANSFORMERS_CACHE', '/tmp/hf_cache')
@@ -838,6 +839,9 @@ def skill_gap():
                 'courses': courses
             })
     conn.close()
+    # Pass safe HTML for course links
+    for gap in skill_gaps:
+        gap['courses'] = [Markup(link) for link in gap['courses']]
     return render_template('skill_gap.html', skill_gaps=skill_gaps)
 
 @app.route('/voice_command', methods=['POST'], strict_slashes=False)
