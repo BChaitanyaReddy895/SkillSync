@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Resume Scorer - SkillSync</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .scorer-container {
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 30px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .score-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .score-display {
+            font-size: 72px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .grade-badge {
+            display: inline-block;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 20px;
+            font-size: 24px;
+            margin-top: 10px;
+        }
+        .breakdown-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .breakdown-item {
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .breakdown-label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        .breakdown-score {
+            font-size: 32px;
+            font-weight: bold;
+            color: #333;
+        }
+        .recommendations {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .recommendation-item {
+            padding: 10px 0;
+            border-bottom: 1px solid #ffe69c;
+        }
+        .recommendation-item:last-child {
+            border-bottom: none;
+        }
+        .form-group {
+            margin: 20px 0;
+        }
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+        .metric-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            background: #e7f3ff;
+            color: #0066cc;
+            border-radius: 12px;
+            margin: 5px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="scorer-container">
+        <h1>🤖 AI Resume Scorer</h1>
+        <p style="color: #666; font-size: 18px;">Get comprehensive AI-powered analysis of your resume with actionable insights</p>
+        
+        <form method="POST" style="margin: 30px 0;">
+            <div class="form-group">
+                <label for="job_description"><strong>Target Job Description (Optional)</strong></label>
+                <textarea name="job_description" id="job_description" class="form-control" rows="6" placeholder="Paste the job description here to get a job-specific match score...">{{ job_description if job_description }}</textarea>
+            </div>
+            <button type="submit" class="btn-primary">🎯 Analyze My Resume</button>
+        </form>
+
+        {% if score_result %}
+        <div class="score-card">
+            <h2>Your Resume Score</h2>
+            <div class="score-display">{{ score_result.total_score }}%</div>
+            <div class="grade-badge">{{ score_result.grade }}</div>
+        </div>
+
+        <h3 style="margin-top: 40px;">📊 Detailed Breakdown</h3>
+        <div class="breakdown-grid">
+            <div class="breakdown-item">
+                <div class="breakdown-label">Completeness</div>
+                <div class="breakdown-score">{{ score_result.breakdown.completeness }}%</div>
+            </div>
+            <div class="breakdown-item">
+                <div class="breakdown-label">Skills Depth</div>
+                <div class="breakdown-score">{{ score_result.breakdown.skills_depth }}%</div>
+            </div>
+            <div class="breakdown-item">
+                <div class="breakdown-label">Experience Quality</div>
+                <div class="breakdown-score">{{ score_result.breakdown.experience_quality }}%</div>
+            </div>
+            <div class="breakdown-item">
+                <div class="breakdown-label">Job Match</div>
+                <div class="breakdown-score">{{ score_result.breakdown.job_match }}%</div>
+            </div>
+        </div>
+
+        <div style="margin: 20px 0;">
+            <span class="metric-badge">📚 {{ score_result.technical_skills_count }} Technical Skills</span>
+            <span class="metric-badge">💡 {{ score_result.soft_skills_count }} Soft Skills</span>
+        </div>
+
+        {% if score_result.recommendations %}
+        <div class="recommendations">
+            <h3 style="margin-top: 0;">💡 Recommendations for Improvement</h3>
+            {% for rec in score_result.recommendations %}
+            <div class="recommendation-item">
+                <strong>•</strong> {{ rec }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div style="margin-top: 30px; padding: 20px; background: #e7f3ff; border-radius: 8px;">
+            <h4>🚀 Next Steps</h4>
+            <p><a href="{{ url_for('edit_resume') }}">Edit Your Resume</a> to implement the recommendations</p>
+            <p><a href="{{ url_for('learning_path') }}">Generate Learning Path</a> to fill skill gaps</p>
+            <p><a href="{{ url_for('match') }}">Find Matched Internships</a> based on your improved profile</p>
+        </div>
+        {% endif %}
+
+        <div style="margin-top: 30px; text-align: center;">
+            <a href="{{ url_for('intern_dashboard') }}" class="btn-primary">← Back to Dashboard</a>
+        </div>
+    </div>
+</body>
+</html>

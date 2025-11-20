@@ -21,11 +21,61 @@ from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 from functools import wraps
 from collections import Counter
-from transformers import pipeline
+
+# Completely disable TensorFlow before any imports
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+os.environ['TRANSFORMERS_NO_TF'] = '1'
+os.environ['USE_TF'] = '0'
+
+# Check if user wants to skip ML features entirely
+SKIP_ML = os.getenv('SKIP_ML_FEATURES', '0') == '1'
+
+# Try to import transformers pipeline with error handling
+_TRANSFORMERS_AVAILABLE = False
+pipeline = None
+
+if not SKIP_ML:
+    try:
+        # Import only if needed, with full error suppression
+        import warnings
+        warnings.filterwarnings('ignore')
+        from transformers import pipeline
+        _TRANSFORMERS_AVAILABLE = True
+        print("✓ Transformers library loaded")
+    except Exception as e:
+        print(f"Note: transformers library not available, using fallback methods")
+        _TRANSFORMERS_AVAILABLE = False
+        pipeline = None
+else:
+    print("ℹ ML features skipped (SKIP_ML_FEATURES=1)")
+
 from rake_nltk import Rake
 import requests
 from markupsafe import Markup
 import pdfplumber
+
+# Import advanced ML utilities
+ML_FEATURES_ENABLED = False
+if not SKIP_ML:
+    try:
+        from ml_utils import (
+            semantic_similarity,
+            enhanced_skill_matching,
+            extract_skills_intelligent,
+            calculate_resume_score,
+            analyze_interview_response,
+            predictor as internship_predictor,
+            generate_learning_path,
+            analyze_text_quality
+        )
+        ML_FEATURES_ENABLED = True
+        print("✓ Advanced ML features loaded successfully")
+    except ImportError as e:
+        ML_FEATURES_ENABLED = False
+        print(f"Note: ML features not available: {str(e)}")
+else:
+    print("ℹ Advanced ML features disabled")
 
 # Set Hugging Face cache directory to a writable location
 os.environ['TRANSFORMERS_CACHE'] = os.getenv('TRANSFORMERS_CACHE', '/tmp/hf_cache')
@@ -110,6 +160,7 @@ def initialize_database():
         resume_path TEXT,
         downloaded INTEGER DEFAULT 0,
         enhanced_resume TEXT,
+        soft_skills TEXT,
         FOREIGN KEY (user_id) REFERENCES users(user_id)
     );
     CREATE TABLE IF NOT EXISTS internship_info (
@@ -176,8 +227,7 @@ def initialize_database():
         issued_date TEXT,
         FOREIGN KEY (user_id) REFERENCES users(user_id)
     );
-    ALTER TABLE resume_info ADD COLUMN soft_skills TEXT;
-CREATE TABLE IF NOT EXISTS interview_feedback (
+    CREATE TABLE IF NOT EXISTS interview_feedback (
     feedback_id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
     question TEXT,
@@ -207,10 +257,14 @@ CREATE TABLE IF NOT EXISTS mentorship_requests (
     '''
     conn = get_db_connection()
     if conn:
-        conn.executescript(schema)
-        conn.commit()
-        conn.close()
-        logging.info("Database schema initialized")
+        try:
+            conn.executescript(schema)
+            conn.commit()
+            logging.info("Database schema initialized")
+        except Exception as e:
+            logging.error(f"Error initializing database: {str(e)}")
+        finally:
+            conn.close()
 
 def insert_test_data():
     conn = get_db_connection()
@@ -287,12 +341,18 @@ if not os.path.exists(DB_PATH):
 else:
     conn = get_db_connection()
     if conn:
-        user_count = conn.execute('SELECT COUNT(*) FROM users').fetchone()[0]
-        conn.close()
-        if user_count == 0:
-            logging.warning("Test data missing, reinitializing")
+        try:
+            user_count = conn.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+            if user_count == 0:
+                logging.warning("Test data missing, inserting test data")
+                insert_test_data()
+        except sqlite3.OperationalError:
+            # Table doesn't exist, need to initialize
+            logging.warning("Database tables missing, reinitializing")
             initialize_database()
             insert_test_data()
+        finally:
+            conn.close()
 
 # Global data
 resume_df = pd.DataFrame()
@@ -598,10 +658,11 @@ def intern_dashboard():
         return redirect(url_for('create_resume'))
     applied_internship_ids = [app['internship_id'] for app in applications]
     user_skills = preprocess_skills(resume['skills'])
+    user_skills_text = ' '.join(user_skills)
     internships = []
     one_month_ago = datetime.now() - timedelta(days=30)
     for idx, internship in internship_df.iterrows():
-        posted_date = internship.get('posted_date')
+        posted_date = internship['posted_date'] if 'posted_date' in internship else None
         if posted_date:
             try:
                 posted_dt = datetime.strptime(posted_date[:10], '%Y-%m-%d')
@@ -609,7 +670,16 @@ def intern_dashboard():
                     continue
             except Exception:
                 continue
-        similarity = jaccard_similarity(user_skills, internship['processed_Required_Skills'])
+        
+        # Use advanced semantic matching if available
+        if ML_FEATURES_ENABLED:
+            required_skills = internship['processed_Required_Skills']
+            required_skills_text = ' '.join(required_skills)
+            similarity = semantic_similarity(user_skills_text, required_skills_text)
+        else:
+            # Fallback to Jaccard similarity
+            similarity = jaccard_similarity(user_skills, internship['processed_Required_Skills'])
+        
         if similarity > 0:
             internships.append({
                 **internship,
@@ -619,8 +689,8 @@ def intern_dashboard():
     total_points = sum(p['points'] for p in progress) if progress else 0
     level = total_points // 100
     # Check if resume is uploaded for apply button logic
-    resume_uploaded = bool(resume and resume.get('resume_path'))
-    return render_template('intern_dashboard.html', user_name=session['user_name'], internships=internships, applied_internship_ids=applied_internship_ids, total_points=total_points, level=level, resume_uploaded=resume_uploaded)
+    resume_uploaded = bool(resume and resume['resume_path'])
+    return render_template('intern_dashboard.html', user_name=session['user_name'], internships=internships, applied_internship_ids=applied_internship_ids, total_points=total_points, level=level, resume_uploaded=resume_uploaded, ml_enabled=ML_FEATURES_ENABLED)
 
 @app.route('/register_internship', methods=['GET', 'POST'], strict_slashes=False)
 @role_required('recruiter')
@@ -840,7 +910,7 @@ def skill_gap():
     skill_gaps = []
     one_month_ago = datetime.now() - timedelta(days=30)
     for idx, internship in internship_df.iterrows():
-        posted_date = internship.get('posted_date')
+        posted_date = internship['posted_date'] if 'posted_date' in internship else None
         if posted_date:
             try:
                 posted_dt = datetime.strptime(posted_date[:10], '%Y-%m-%d')
@@ -1072,7 +1142,7 @@ def top_matched_applicants(internship_id):
                     'skills': resume['skills'],
                     'soft_skills': resume['soft_skills'] or 'Not assessed',
                     'similarity_score': round(similarity * 100, 2),
-                    'resume_path': resume.get('resume_path', ''),
+                    'resume_path': resume['resume_path'] if resume['resume_path'] else '',
                     'total_points': total_points
                 })
     conn.close()
@@ -1116,7 +1186,7 @@ def apply_internship(internship_id):
         flash('Database error.', 'danger')
         return redirect(url_for('intern_dashboard'))
     resume = conn.execute('SELECT * FROM resume_info WHERE user_id = ?', (user_id,)).fetchone()
-    if not resume or not resume.get('resume_path'):
+    if not resume or not resume['resume_path']:
         conn.close()
         flash('Please upload your resume before applying to internships!', 'danger')
         return redirect(url_for('intern_dashboard'))
@@ -1495,23 +1565,31 @@ def mock_interview():
         return redirect(url_for('create_resume'))
     
     questions = [
-        {'id': 1, 'question': f'Tell me how you applied {resume["skills"]} in a project.', 'category': 'Technical'},
+        {'id': 1, 'question': f'Tell me how you applied {resume["skills"][:50]} in a project.', 'category': 'Technical'},
         {'id': 2, 'question': 'Describe a challenge you faced and how you overcame it.', 'category': 'Behavioral'},
         {'id': 3, 'question': 'Why are you interested in this internship?', 'category': 'General'}
     ]
     
-    feedback = None
+    feedback_result = None
     if request.method == 'POST':
-        question_id = int(request.form.get('question_id'))
-        response = request.form.get('response')
-        # Use Hugging Face NLP for feedback
-        nlp_result = feedback_nlp(response)
-        feedback = f"AI Feedback: {nlp_result[0]['label']} (confidence: {nlp_result[0]['score']:.2f})"
-        # Optionally, store feedback in DB here
+        question_id = int(request.form.get('question_id', 1))
+        question_text = request.form.get('question_text', '')
+        response = request.form.get('response', '')
+        
+        # Use advanced ML analysis
+        if ML_FEATURES_ENABLED and response:
+            feedback_result = analyze_interview_response(question_text, response)
+            # Store feedback in database
+            conn.execute('INSERT INTO interview_feedback (user_id, question, response, feedback, date) VALUES (?, ?, ?, ?, ?)',
+                        (user_id, question_text, response, str(feedback_result), datetime.now().strftime('%Y-%m-%d')))
+            conn.execute('INSERT INTO user_progress (user_id, task_type, task_description, completion_date, points) VALUES (?, ?, ?, ?, ?)',
+                        (user_id, 'Mock Interview', 'Completed mock interview question', datetime.now().strftime('%Y-%m-%d'), 30))
+            conn.commit()
 
-    feedback_history = conn.execute('SELECT * FROM interview_feedback WHERE user_id = ?', (user_id,)).fetchall()
+    feedback_history = conn.execute('SELECT * FROM interview_feedback WHERE user_id = ? ORDER BY date DESC LIMIT 5', (user_id,)).fetchall()
     conn.close()
-    return render_template('mock_interview.html', questions=questions, feedback_history=feedback_history, feedback=feedback)
+    return render_template('mock_interview.html', questions=questions, feedback_history=feedback_history, feedback=feedback_result)
+
 @app.route('/ats_insights', methods=['GET', 'POST'], strict_slashes=False)
 @role_required('intern')
 def ats_insights():
@@ -1525,11 +1603,16 @@ def ats_insights():
         conn.close()
         flash('Please create your resume first!', 'warning')
         return redirect(url_for('create_resume'))
+    
     keyword_score = None
     tips = []
+    semantic_score = None
+    
     if request.method == 'POST':
         job_description = request.form['job_description']
         resume_text = ' '.join([resume[field] for field in ['skills', 'experience', 'education', 'certifications', 'achievements'] if resume[field]])
+        
+        # Traditional keyword matching
         r = Rake()
         r.extract_keywords_from_text(job_description)
         job_keywords = set(r.get_ranked_phrases())
@@ -1537,11 +1620,25 @@ def ats_insights():
         resume_keywords = set(r.get_ranked_phrases())
         match_count = len(job_keywords & resume_keywords)
         keyword_score = int((match_count / len(job_keywords)) * 100) if job_keywords else 0
-        tips = [
-            f"Add more keywords from the job description: {', '.join(job_keywords - resume_keywords)}"
-        ]
+        
+        # Advanced semantic matching
+        if ML_FEATURES_ENABLED:
+            semantic_score = int(semantic_similarity(resume_text, job_description) * 100)
+            tips.append(f"🎯 Semantic Match Score: {semantic_score}% (AI-powered deep analysis)")
+        
+        tips.append(f"📊 Keyword Match Score: {keyword_score}%")
+        
+        missing_keywords = job_keywords - resume_keywords
+        if missing_keywords:
+            tips.append(f"❗ Add these keywords: {', '.join(list(missing_keywords)[:5])}")
+        
+        if keyword_score < 60:
+            tips.append("⚠️ Low keyword match. Tailor your resume to job description.")
+        if semantic_score and semantic_score < 70:
+            tips.append("💡 Consider rephrasing experience to better match job requirements.")
+    
     conn.close()
-    return render_template('ats_insights.html', keyword_score=keyword_score, tips=tips)
+    return render_template('ats_insights.html', keyword_score=keyword_score, semantic_score=semantic_score, tips=tips)
 @app.route('/become_mentor', methods=['GET', 'POST'], strict_slashes=False)
 @role_required('recruiter')
 def become_mentor():
@@ -1635,6 +1732,314 @@ def respond_mentorship(request_id):
     conn.close()
     flash(f'Mentorship request {status} successfully!', 'success')
     return redirect(url_for('mentor_dashboard'))
+
+
+# ============================================================================
+# ADVANCED ML-POWERED ROUTES
+# ============================================================================
+
+@app.route('/ai_resume_scorer', methods=['GET', 'POST'], strict_slashes=False)
+@role_required('intern')
+def ai_resume_scorer():
+    """AI-powered comprehensive resume scoring"""
+    user_id = session['user_id']
+    conn = get_db_connection()
+    if not conn:
+        flash('Database error.', 'danger')
+        return redirect(url_for('intern_dashboard'))
+    
+    resume = conn.execute('SELECT * FROM resume_info WHERE user_id = ?', (user_id,)).fetchone()
+    if not resume:
+        conn.close()
+        flash('Please create your resume first!', 'warning')
+        return redirect(url_for('create_resume'))
+    
+    score_result = None
+    job_description = None
+    
+    if request.method == 'POST':
+        job_description = request.form.get('job_description', '')
+        
+        if ML_FEATURES_ENABLED:
+            resume_data = {
+                'skills': resume['skills'] or '',
+                'experience': resume['experience'] or '',
+                'education': resume['education'] or '',
+                'certifications': resume['certifications'] or '',
+                'achievements': resume['achievements'] or '',
+                'phone_number': resume['phone_number'] or '',
+                'email': resume['email'] or ''
+            }
+            score_result = calculate_resume_score(resume_data, job_description if job_description else None)
+            
+            # Award points for using the scorer
+            conn.execute('INSERT INTO user_progress (user_id, task_type, task_description, completion_date, points) VALUES (?, ?, ?, ?, ?)',
+                        (user_id, 'Resume Analysis', 'Used AI Resume Scorer', datetime.now().strftime('%Y-%m-%d'), 25))
+            conn.commit()
+        else:
+            flash('Advanced ML features are not available.', 'warning')
+    
+    conn.close()
+    return render_template('ai_resume_scorer.html', score_result=score_result, job_description=job_description)
+
+
+@app.route('/success_predictor/<int:internship_id>', methods=['GET'], strict_slashes=False)
+@role_required('intern')
+def success_predictor(internship_id):
+    """Predict internship application success probability"""
+    user_id = session['user_id']
+    conn = get_db_connection()
+    if not conn:
+        flash('Database error.', 'danger')
+        return redirect(url_for('intern_dashboard'))
+    
+    resume = conn.execute('SELECT * FROM resume_info WHERE user_id = ?', (user_id,)).fetchone()
+    internship = conn.execute('SELECT * FROM internship_info WHERE id = ?', (internship_id,)).fetchone()
+    
+    if not resume or not internship:
+        conn.close()
+        flash('Resume or internship not found.', 'danger')
+        return redirect(url_for('intern_dashboard'))
+    
+    prediction_result = None
+    
+    if ML_FEATURES_ENABLED:
+        user_data = {
+            'skills': resume['skills'] or '',
+            'experience': resume['experience'] or '',
+            'education': resume['education'] or '',
+            'certifications': resume['certifications'] or '',
+            'phone_number': resume['phone_number'] or '',
+            'email': resume['email'] or '',
+            'location': ''
+        }
+        
+        internship_data = {
+            'skills_required': internship['skills_required'] or '',
+            'years_of_experience': internship['years_of_experience'] or 0,
+            'location': internship['location'] or ''
+        }
+        
+        prediction_result = internship_predictor.predict_success_probability(user_data, internship_data)
+    else:
+        flash('Advanced ML features are not available.', 'warning')
+    
+    conn.close()
+    return render_template('success_predictor.html', 
+                         prediction=prediction_result, 
+                         internship=internship,
+                         user_name=session['user_name'])
+
+
+@app.route('/learning_path', methods=['GET', 'POST'], strict_slashes=False)
+@role_required('intern')
+def learning_path():
+    """Generate personalized learning path"""
+    user_id = session['user_id']
+    conn = get_db_connection()
+    if not conn:
+        flash('Database error.', 'danger')
+        return redirect(url_for('intern_dashboard'))
+    
+    resume = conn.execute('SELECT * FROM resume_info WHERE user_id = ?', (user_id,)).fetchone()
+    if not resume:
+        conn.close()
+        flash('Please create your resume first!', 'warning')
+        return redirect(url_for('create_resume'))
+    
+    learning_plan = None
+    target_role = None
+    
+    if request.method == 'POST':
+        target_role = request.form.get('target_role', '')
+        internship_id = request.form.get('internship_id', '')
+        
+        if ML_FEATURES_ENABLED:
+            if internship_id:
+                # Get target skills from specific internship
+                internship = conn.execute('SELECT skills_required FROM internship_info WHERE id = ?', (int(internship_id),)).fetchone()
+                target_skills = [s.strip() for s in internship['skills_required'].split(',') if s.strip()]
+            else:
+                # Use general skills for the role
+                target_skills = ['python', 'sql', 'git', 'problem solving', 'communication']
+            
+            user_skills = [s.strip() for s in resume['skills'].split(',') if s.strip()]
+            learning_plan = generate_learning_path(user_skills, target_skills, target_role)
+            
+            # Award points
+            conn.execute('INSERT INTO user_progress (user_id, task_type, task_description, completion_date, points) VALUES (?, ?, ?, ?, ?)',
+                        (user_id, 'Learning Path', 'Generated personalized learning path', datetime.now().strftime('%Y-%m-%d'), 30))
+            conn.commit()
+        else:
+            flash('Advanced ML features are not available.', 'warning')
+    
+    # Get available internships for dropdown
+    internships = conn.execute('SELECT id, role, company_name FROM internship_info LIMIT 20').fetchall()
+    conn.close()
+    
+    return render_template('learning_path.html', 
+                         learning_plan=learning_plan, 
+                         target_role=target_role,
+                         internships=internships,
+                         user_name=session['user_name'])
+
+
+@app.route('/ai_chatbot', methods=['GET', 'POST'], strict_slashes=False)
+def ai_chatbot():
+    """AI Career Guidance Chatbot"""
+    if 'user_id' not in session:
+        flash('Please login to use the AI chatbot.', 'warning')
+        return redirect(url_for('index'))
+    
+    response = None
+    
+    if request.method == 'POST':
+        user_message = request.form.get('message', '')
+        
+        if ML_FEATURES_ENABLED and user_message:
+            # Simple rule-based chatbot with contextual responses
+            response = generate_chatbot_response(user_message)
+        else:
+            response = "I'm here to help! Ask me about resume tips, interview preparation, or career advice."
+    
+    return render_template('ai_chatbot.html', response=response, user_name=session.get('user_name'))
+
+
+def generate_chatbot_response(message: str) -> str:
+    """Generate contextual chatbot responses"""
+    message_lower = message.lower()
+    
+    # Resume-related queries
+    if any(word in message_lower for word in ['resume', 'cv']):
+        return """📝 **Resume Tips:**
+        
+1. **Use action verbs**: Start bullet points with words like 'Developed', 'Created', 'Managed'
+2. **Quantify achievements**: Include numbers (e.g., 'Increased efficiency by 30%')
+3. **Tailor to job**: Match keywords from job description
+4. **Keep it concise**: 1-2 pages maximum
+5. **Use our AI Resume Scorer** for detailed feedback!
+
+Try our resume enhancement tools in your dashboard."""
+    
+    # Interview-related queries
+    elif any(word in message_lower for word in ['interview', 'preparation', 'questions']):
+        return """🎤 **Interview Preparation Tips:**
+        
+1. **Research the company**: Know their mission, products, and culture
+2. **Use STAR method**: Situation, Task, Action, Result for behavioral questions
+3. **Prepare questions**: Have 3-5 thoughtful questions ready
+4. **Practice out loud**: Use our Mock Interview feature
+5. **Follow up**: Send a thank-you email within 24 hours
+
+Check out our Mock Interview tool for AI-powered feedback!"""
+    
+    # Skills-related queries
+    elif any(word in message_lower for word in ['skill', 'learn', 'course']):
+        return """🎓 **Skill Development Advice:**
+        
+1. **Identify gaps**: Use our Skill Gap Analysis tool
+2. **Focus on fundamentals**: Master core concepts first
+3. **Build projects**: Practice by creating real applications
+4. **Get certified**: Add recognized certifications to your resume
+5. **Stay updated**: Technology changes fast - keep learning!
+
+Use our Learning Path Generator for personalized recommendations!"""
+    
+    # Application-related queries
+    elif any(word in message_lower for word in ['apply', 'application', 'job']):
+        return """✅ **Application Strategy:**
+        
+1. **Quality over quantity**: Apply to roles that match your skills (75%+ match)
+2. **Customize each application**: Tailor resume and cover letter
+3. **Use our Success Predictor**: Check your chances before applying
+4. **Follow up**: Send a polite follow-up after 1-2 weeks
+5. **Network**: Connect with recruiters and employees on LinkedIn
+
+Check your dashboard for matched opportunities!"""
+    
+    # Career planning
+    elif any(word in message_lower for word in ['career', 'path', 'future', 'plan']):
+        return """🚀 **Career Planning Guidance:**
+        
+1. **Set clear goals**: Where do you see yourself in 1, 3, 5 years?
+2. **Identify growth areas**: What skills do you need to develop?
+3. **Seek mentorship**: Use our Mentorship feature to connect with experts
+4. **Build portfolio**: Showcase your best work on GitHub/personal website
+5. **Stay flexible**: Be open to new opportunities and pivots
+
+Explore our Mentorship program to connect with industry professionals!"""
+    
+    # Salary/compensation
+    elif any(word in message_lower for word in ['salary', 'pay', 'compensation', 'money']):
+        return """💰 **Compensation Discussion Tips:**
+        
+1. **Research market rates**: Use sites like Glassdoor, Levels.fyi
+2. **Know your worth**: Consider your skills, experience, and location
+3. **Wait for the right time**: Let them make the first offer
+4. **Negotiate professionally**: Be confident but not demanding
+5. **Consider total package**: Benefits, growth opportunities, work-life balance
+
+Our analytics show salary ranges for different internships!"""
+    
+    # Default response
+    else:
+        return """👋 **Hello! I'm your AI Career Assistant.**
+
+I can help you with:
+- 📝 Resume writing and optimization
+- 🎤 Interview preparation and tips
+- 🎓 Skill development and learning paths
+- ✅ Application strategies
+- 🚀 Career planning and growth
+- 💰 Salary negotiation advice
+
+Ask me anything about your career journey! You can also explore our advanced tools:
+- **AI Resume Scorer**: Get detailed resume feedback
+- **Success Predictor**: Check your application chances
+- **Learning Path**: Get personalized course recommendations
+- **Mock Interview**: Practice with AI feedback"""
+
+
+@app.route('/semantic_search', methods=['POST'], strict_slashes=False)
+@role_required('recruiter')
+def semantic_search():
+    """Semantic search for candidates"""
+    user_id = session['user_id']
+    search_query = request.form.get('query', '')
+    
+    if not search_query or not ML_FEATURES_ENABLED:
+        return jsonify({'error': 'Invalid query or ML features not available'}), 400
+    
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Database error'}), 500
+    
+    # Get all resumes
+    resumes = conn.execute('SELECT * FROM resume_info').fetchall()
+    conn.close()
+    
+    results = []
+    for resume in resumes:
+        resume_text = ' '.join([
+            resume['skills'] or '',
+            resume['experience'] or '',
+            resume['education'] or ''
+        ])
+        
+        similarity = semantic_similarity(search_query, resume_text)
+        
+        if similarity > 0.3:  # Threshold
+            results.append({
+                'name': resume['name_of_applicant'],
+                'email': resume['email'],
+                'skills': resume['skills'],
+                'similarity': round(similarity * 100, 1)
+            })
+    
+    # Sort by similarity
+    results = sorted(results, key=lambda x: x['similarity'], reverse=True)[:10]
+    
+    return jsonify({'results': results})
 
 
 @app.errorhandler(Exception)

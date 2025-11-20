@@ -220,7 +220,13 @@
             <a href="{{ url_for('soft_skills_assessment') }}" class="button">Soft Skills Assessment</a>
             <a href="{{ url_for('mentorship') }}" class="button">Mentorship</a>
             <a href="{{ url_for('leaderboard') }}" class="button">Leaderboard</a>
-            <a href="{{ url_for('micro_credentials') }}" class="button">Micro-Credentials</a>
+            <a href="{{ url_for('issue_credential') }}" class="button">Micro-Credentials</a>
+            <!-- New AI-Powered Features -->
+            {% if ml_enabled %}
+            <a href="{{ url_for('ai_resume_scorer') }}" class="button" style="background: linear-gradient(90deg, #667eea 60%, #764ba2 100%);">🤖 AI Resume Scorer</a>
+            <a href="{{ url_for('learning_path') }}" class="button" style="background: linear-gradient(90deg, #667eea 60%, #764ba2 100%);">🎓 Learning Path</a>
+            <a href="{{ url_for('ai_chatbot') }}" class="button" style="background: linear-gradient(90deg, #667eea 60%, #764ba2 100%);">💬 AI Career Chat</a>
+            {% endif %}
             <button id="voice-command-btn" type="button" class="button">Voice Command</button>
         </div>
         <h2>Matched Internships</h2>
@@ -236,6 +242,12 @@
                     <p><strong>Location:</strong> {{ internship.location }}</p>
                     <p><strong>Skills Required:</strong> {{ internship.skills_required }}</p>
                     <p><strong>Similarity Score:</strong> {{ internship.similarity_score }}%</p>
+                    {% if ml_enabled %}
+                    <a href="{{ url_for('success_predictor', internship_id=internship.id) }}" 
+                       style="display:inline-block;padding:8px 16px;background:#667eea;color:white;text-decoration:none;border-radius:4px;margin:8px 5px 8px 0;font-size:0.95rem;">
+                        🎯 Predict Success
+                    </a>
+                    {% endif %}
                     {% if internship.similarity_score > 75 %}
                         {% if internship.id in applied_internship_ids %}
                             <span class="applied-label">Applied</span>

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learning Path - SkillSync</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .learning-container {
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 30px;
+        }
+        .form-section {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin: 20px 0;
+        }
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .status-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .skills-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .skill-badge {
+            padding: 8px 12px;
+            background: #e7f3ff;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 14px;
+        }
+        .skill-badge.missing {
+            background: #ffe7e7;
+            color: #d32f2f;
+        }
+        .course-card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .course-skill {
+            font-size: 20px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        .priority-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .priority-high {
+            background: #ffebee;
+            color: #c62828;
+        }
+        .priority-medium {
+            background: #fff3e0;
+            color: #ef6c00;
+        }
+        .resource-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .resource-link {
+            display: block;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            text-decoration: none;
+            color: #333;
+            transition: background 0.3s;
+        }
+        .resource-link:hover {
+            background: #667eea;
+            color: white;
+        }
+        .timeline {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="learning-container">
+        <h1>🎓 Personalized Learning Path</h1>
+        <p style="color: #666; font-size: 18px;">AI-powered learning recommendations tailored to your career goals</p>
+
+        <div class="form-section">
+            <h3>Generate Your Learning Path</h3>
+            <form method="POST">
+                <div class="form-group">
+                    <label for="target_role"><strong>Target Role (Optional)</strong></label>
+                    <input type="text" name="target_role" id="target_role" class="form-control" 
+                           placeholder="e.g., Full Stack Developer, Data Scientist, ML Engineer" 
+                           value="{{ target_role if target_role }}">
+                </div>
+                <div class="form-group">
+                    <label for="internship_id"><strong>Or Select an Internship</strong></label>
+                    <select name="internship_id" id="internship_id" class="form-control">
+                        <option value="">-- Choose an internship to match --</option>
+                        {% for internship in internships %}
+                        <option value="{{ internship.id }}">{{ internship.role }} at {{ internship.company_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn-primary">🚀 Generate Learning Path</button>
+            </form>
+        </div>
+
+        {% if learning_plan %}
+        {% if learning_plan.status == 'complete' %}
+        <div class="status-card">
+            <h2>🎉 {{ learning_plan.message }}</h2>
+            <p>You're ready to apply for positions requiring these skills!</p>
+        </div>
+        {% else %}
+        <div class="status-card">
+            <h2>📚 Learning Path Generated</h2>
+            <p><strong>{{ learning_plan.missing_skills_count }}</strong> skills to learn</p>
+            <p>Estimated Time: <strong>{{ learning_plan.estimated_total_time }}</strong></p>
+        </div>
+
+        <div class="form-section">
+            <h3>📊 Skills Categorization</h3>
+            
+            {% if learning_plan.categorized_skills.beginner %}
+            <h4 style="color: #28a745;">🟢 Beginner Level</h4>
+            <div class="skills-grid">
+                {% for skill in learning_plan.categorized_skills.beginner %}
+                <div class="skill-badge missing">{{ skill }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if learning_plan.categorized_skills.intermediate %}
+            <h4 style="color: #ffc107;">🟡 Intermediate Level</h4>
+            <div class="skills-grid">
+                {% for skill in learning_plan.categorized_skills.intermediate %}
+                <div class="skill-badge missing">{{ skill }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if learning_plan.categorized_skills.advanced %}
+            <h4 style="color: #dc3545;">🔴 Advanced Level</h4>
+            <div class="skills-grid">
+                {% for skill in learning_plan.categorized_skills.advanced %}
+                <div class="skill-badge missing">{{ skill }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="form-section">
+            <h3>🎯 Recommended Learning Resources</h3>
+            {% for course in learning_plan.recommendations %}
+            <div class="course-card">
+                <div class="course-skill">
+                    📖 {{ course.skill }}
+                    <span class="priority-badge priority-{{ course.priority|lower }}">{{ course.priority }} Priority</span>
+                </div>
+                <div class="timeline">
+                    ⏱️ Estimated Time: {{ course.estimated_time }}
+                </div>
+                <div class="resource-list">
+                    {% for resource in course.resources %}
+                    <a href="{{ resource.url }}" target="_blank" class="resource-link">
+                        <strong>{{ resource.platform }}</strong><br>
+                        <small>{{ resource.type }}</small>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="form-section" style="background: #e7f3ff;">
+            <h3>💡 Learning Tips</h3>
+            <ul style="line-height: 1.8;">
+                <li><strong>Start with high-priority skills</strong> that are most requested in job postings</li>
+                <li><strong>Build projects</strong> while learning to reinforce concepts</li>
+                <li><strong>Join communities</strong> on GitHub, Stack Overflow, and Reddit</li>
+                <li><strong>Practice daily</strong> - consistency is key to mastery</li>
+                <li><strong>Get certified</strong> to validate your skills officially</li>
+                <li><strong>Update your resume</strong> as you learn new skills</li>
+            </ul>
+        </div>
+        {% endif %}
+        {% endif %}
+
+        <div style="text-align: center; margin-top: 30px;">
+            <a href="{{ url_for('intern_dashboard') }}" class="btn-primary">← Back to Dashboard</a>
+            <a href="{{ url_for('skill_gap') }}" class="btn-primary">📊 View Skill Gap Analysis</a>
+        </div>
+    </div>
+</body>
+</html>

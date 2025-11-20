@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Success Predictor - SkillSync</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .predictor-container {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 30px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .prediction-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 12px;
+            margin: 30px 0;
+            text-align: center;
+        }
+        .probability-circle {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 20px auto;
+            border: 8px solid rgba(255,255,255,0.3);
+        }
+        .probability-value {
+            font-size: 56px;
+            font-weight: bold;
+        }
+        .prediction-badge {
+            display: inline-block;
+            padding: 12px 24px;
+            background: rgba(255,255,255,0.9);
+            color: #667eea;
+            border-radius: 20px;
+            font-size: 20px;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        .confidence-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 16px;
+            margin-top: 10px;
+        }
+        .internship-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .recommendation-box {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin: 10px 5px;
+        }
+        .btn-success {
+            background: #28a745;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin: 10px 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="predictor-container">
+        <h1>🎯 Internship Success Predictor</h1>
+        <p style="color: #666; font-size: 18px;">AI-powered prediction of your application success probability</p>
+
+        {% if internship %}
+        <div class="internship-info">
+            <h3>{{ internship.role }}</h3>
+            <p><strong>Company:</strong> {{ internship.company_name }}</p>
+            <p><strong>Location:</strong> {{ internship.location }}</p>
+            <p><strong>Required Skills:</strong> {{ internship.skills_required }}</p>
+            <p><strong>Experience:</strong> {{ internship.years_of_experience }} years</p>
+        </div>
+        {% endif %}
+
+        {% if prediction %}
+        <div class="prediction-card">
+            <h2>Your Success Probability</h2>
+            <div class="probability-circle">
+                <div class="probability-value">{{ prediction.success_probability }}%</div>
+            </div>
+            <div class="prediction-badge">{{ prediction.prediction }}</div>
+            <div class="confidence-badge">Confidence: {{ prediction.confidence }}</div>
+        </div>
+
+        {% if prediction.success_probability >= 70 %}
+        <div class="recommendation-box">
+            <h3>✅ {{ prediction.recommendation }}</h3>
+            <p>You're a strong match for this position! Your skills and experience align well with the requirements.</p>
+            <ul>
+                <li>Your profile shows excellent compatibility</li>
+                <li>Consider applying with confidence</li>
+                <li>Prepare for technical interviews</li>
+                <li>Highlight relevant projects in your application</li>
+            </ul>
+        </div>
+        {% elif prediction.success_probability >= 50 %}
+        <div class="warning-box">
+            <h3>⚡ {{ prediction.recommendation }}</h3>
+            <p>You have a decent chance, but there's room for improvement.</p>
+            <ul>
+                <li>Strengthen your skills alignment</li>
+                <li>Add relevant certifications</li>
+                <li>Build projects showcasing required skills</li>
+                <li>Network with current employees</li>
+            </ul>
+        </div>
+        {% else %}
+        <div class="warning-box">
+            <h3>⚠️ {{ prediction.recommendation }}</h3>
+            <p>Consider developing your skills before applying to increase your chances.</p>
+            <ul>
+                <li>Focus on learning the required skills</li>
+                <li>Complete relevant online courses</li>
+                <li>Build projects to demonstrate competency</li>
+                <li>Gain experience through smaller opportunities first</li>
+            </ul>
+        </div>
+        {% endif %}
+
+        <div style="text-align: center; margin-top: 30px;">
+            {% if prediction.success_probability >= 75 %}
+            <form action="{{ url_for('apply_internship', internship_id=internship.id) }}" method="POST" style="display: inline;">
+                <button type="submit" class="btn-success">✅ Apply Now</button>
+            </form>
+            {% endif %}
+            <a href="{{ url_for('learning_path') }}" class="btn-primary">📚 Generate Learning Path</a>
+            <a href="{{ url_for('ai_resume_scorer') }}" class="btn-primary">🎯 Improve Resume</a>
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 40px;">
+            <p style="font-size: 18px; color: #666;">No prediction data available. Please try again.</p>
+        </div>
+        {% endif %}
+
+        <div style="margin-top: 40px; text-align: center;">
+            <a href="{{ url_for('intern_dashboard') }}" class="btn-primary">← Back to Dashboard</a>
+        </div>
+    </div>
+</body>
+</html>

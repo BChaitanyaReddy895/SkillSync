@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Career Assistant - SkillSync</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .chatbot-container {
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+        .chat-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px 12px 0 0;
+            text-align: center;
+        }
+        .chat-body {
+            background: white;
+            padding: 30px;
+            min-height: 400px;
+            border-left: 1px solid #ddd;
+            border-right: 1px solid #ddd;
+        }
+        .chat-input-section {
+            background: white;
+            padding: 20px;
+            border-radius: 0 0 12px 12px;
+            border: 1px solid #ddd;
+            border-top: none;
+        }
+        .chat-message {
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            line-height: 1.8;
+        }
+        .chat-message.bot {
+            background: #e7f3ff;
+            border-left: 4px solid #667eea;
+        }
+        .chat-message.user {
+            background: #f0f0f0;
+            border-left: 4px solid #764ba2;
+        }
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+        }
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+        .quick-questions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .quick-btn {
+            padding: 12px;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        .quick-btn:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+        .feature-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 12px;
+            margin: 5px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="chatbot-container">
+        <div class="chat-header">
+            <h1>🤖 AI Career Assistant</h1>
+            <p>Your 24/7 Career Guidance Expert powered by Advanced NLP</p>
+            <div>
+                <span class="feature-badge">💼 Career Planning</span>
+                <span class="feature-badge">📝 Resume Help</span>
+                <span class="feature-badge">🎤 Interview Tips</span>
+                <span class="feature-badge">🎓 Skill Advice</span>
+            </div>
+        </div>
+
+        <div class="chat-body">
+            <div class="chat-message bot">
+                <strong>🤖 AI Assistant:</strong>
+                <p style="margin: 10px 0;">Hello {{ user_name }}! 👋 I'm your AI career assistant. I'm here to help you with:</p>
+                <ul>
+                    <li><strong>📝 Resume Writing:</strong> Tips for ATS-friendly resumes</li>
+                    <li><strong>🎤 Interview Prep:</strong> Common questions and best practices</li>
+                    <li><strong>🎓 Skill Development:</strong> Learning paths and resources</li>
+                    <li><strong>✅ Application Strategy:</strong> How to stand out</li>
+                    <li><strong>🚀 Career Planning:</strong> Long-term growth advice</li>
+                    <li><strong>💰 Salary Negotiation:</strong> Tips for compensation discussions</li>
+                </ul>
+                <p style="margin-top: 15px;">Ask me anything about your career journey!</p>
+            </div>
+
+            {% if response %}
+            <div class="chat-message user">
+                <strong>👤 You:</strong>
+                <p style="margin: 10px 0;">{{ request.form.get('message') }}</p>
+            </div>
+            
+            <div class="chat-message bot">
+                <strong>🤖 AI Assistant:</strong>
+                <div style="margin: 10px 0; white-space: pre-wrap;">{{ response }}</div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div style="background: white; padding: 20px; border-left: 1px solid #ddd; border-right: 1px solid #ddd;">
+            <h4>💡 Quick Questions:</h4>
+            <div class="quick-questions">
+                <form method="POST" style="margin: 0;">
+                    <input type="hidden" name="message" value="How do I write a good resume?">
+                    <button type="submit" class="quick-btn">📝 Resume Tips</button>
+                </form>
+                <form method="POST" style="margin: 0;">
+                    <input type="hidden" name="message" value="How do I prepare for interviews?">
+                    <button type="submit" class="quick-btn">🎤 Interview Prep</button>
+                </form>
+                <form method="POST" style="margin: 0;">
+                    <input type="hidden" name="message" value="What skills should I learn?">
+                    <button type="submit" class="quick-btn">🎓 Skill Advice</button>
+                </form>
+                <form method="POST" style="margin: 0;">
+                    <input type="hidden" name="message" value="How do I apply for jobs?">
+                    <button type="submit" class="quick-btn">✅ Application Tips</button>
+                </form>
+                <form method="POST" style="margin: 0;">
+                    <input type="hidden" name="message" value="How do I plan my career?">
+                    <button type="submit" class="quick-btn">🚀 Career Planning</button>
+                </form>
+                <form method="POST" style="margin: 0;">
+                    <input type="hidden" name="message" value="How do I negotiate salary?">
+                    <button type="submit" class="quick-btn">💰 Salary Tips</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="chat-input-section">
+            <form method="POST">
+                <textarea name="message" class="form-control" rows="3" 
+                          placeholder="Ask me anything about resumes, interviews, skills, career planning, or job applications..." 
+                          required></textarea>
+                <button type="submit" class="btn-primary">💬 Send Message</button>
+            </form>
+        </div>
+
+        <div style="text-align: center; margin-top: 20px;">
+            <a href="{{ url_for('intern_dashboard') if session.get('role') == 'intern' else url_for('recruiter_dashboard') }}" 
+               style="color: #667eea; text-decoration: none; font-weight: bold;">← Back to Dashboard</a>
+        </div>
+
+        <div style="background: #f8f9fa; padding: 20px; margin-top: 20px; border-radius: 8px; text-align: center;">
+            <h4>🚀 Explore More AI-Powered Features:</h4>
+            <p>
+                <a href="{{ url_for('ai_resume_scorer') }}" style="color: #667eea; margin: 0 10px;">AI Resume Scorer</a> |
+                <a href="{{ url_for('learning_path') }}" style="color: #667eea; margin: 0 10px;">Learning Path Generator</a> |
+                <a href="{{ url_for('mock_interview') }}" style="color: #667eea; margin: 0 10px;">Mock Interview</a> |
+                <a href="{{ url_for('ats_insights') }}" style="color: #667eea; margin: 0 10px;">ATS Insights</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
