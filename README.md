@@ -175,8 +175,4 @@ MIT License (Application Code)
 - **NLTK** for NLP utilities
 
 ## Contact & Support
-
-- **Issues:** Check logs at `/tmp/logs/app.log`
-- **Models:** Cached at `/tmp/hf_cache`
 - **Requirements:** Python 3.8+, 2GB RAM, 1GB disk space
-
