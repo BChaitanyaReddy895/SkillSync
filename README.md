@@ -1,21 +1,13 @@
----
-title: SkillSync - AI-Powered Career Platform
-emoji: 🚀
-colorFrom: yellow
-colorTo: blue
-sdk: docker
-pinned: false
----
 
-# 🚀 SkillSync - AI-Powered Internship Matching & Career Development Platform
+# SkillSync - AI-Powered Internship Matching & Career Development Platform
 
 ## Overview
 
 SkillSync is an **advanced, AI-powered platform** that connects interns with the right opportunities using cutting-edge **Natural Language Processing (NLP)** and **Machine Learning (ML)** technologies. The platform goes far beyond traditional keyword matching to provide intelligent, semantic understanding of skills, resumes, and job requirements.
 
-## ✨ Key Features
+##  Key Features
 
-### 🤖 **AI-Powered Core Features**
+###  **AI-Powered Core Features**
 
 1. **Semantic Matching Engine**
    - Deep learning-based resume-job matching using Sentence Transformers
@@ -58,7 +50,7 @@ SkillSync is an **advanced, AI-powered platform** that connects interns with the
    - Dual scoring for comprehensive analysis
    - Missing keyword identification
 
-### 📊 **Traditional Features (Enhanced with AI)**
+###  **Traditional Features (Enhanced with AI)**
 
 - Resume creation and management
 - Internship posting and application
@@ -71,7 +63,7 @@ SkillSync is an **advanced, AI-powered platform** that connects interns with the
 - Credential verification (blockchain-ready)
 - Analytics dashboard for recruiters
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 ### Backend
 - **Framework:** Flask (Python)
@@ -94,7 +86,7 @@ SkillSync is an **advanced, AI-powered platform** that connects interns with the
 - Responsive design
 - Modern UI/UX
 
-## 📦 Installation
+##  Installation
 
 ```bash
 # Clone the repository
@@ -110,7 +102,7 @@ python app.py
 
 **Note:** First run will download ML models automatically.
 
-## 🚀 Usage
+##  Usage
 
 ### For Interns
 
@@ -132,7 +124,7 @@ python app.py
 4. **Access Analytics** → Insights on applicants
 5. **Semantic Search** → Find candidates by meaning, not keywords
 
-## 🎯 Unique Selling Points
+##  Unique Selling Points
 
 ### What Makes SkillSync Different?
 
@@ -143,7 +135,7 @@ python app.py
 5. **Transparent AI** - Explainable predictions and recommendations
 6. **Comprehensive Analysis** - Multi-dimensional resume scoring
 
-## 📊 Performance Metrics
+##  Performance Metrics
 
 - **Matching Accuracy:** 85-95% (vs 50-60% traditional)
 - **Resume Quality Improvement:** Average 25% increase
@@ -151,19 +143,18 @@ python app.py
 - **User Engagement:** 60% complete recommended courses
 - **Time Savings:** 95% faster than manual processes
 
-## 📚 Documentation
+##  Documentation
 
 - **[ML Features Documentation](ML_FEATURES.md)** - Comprehensive guide to all AI features
-- **[Testing Guide](TESTING_GUIDE.md)** - Step-by-step testing instructions
 
-## 🔐 Security & Privacy
+##  Security & Privacy
 
 - Password hashing (Werkzeug)
 - Session management
 - Role-based access control
 - Credential verification system
 
-## 🤝 Contributing
+## Contributing
 
 Contributions welcome! Areas of interest:
 - Additional ML models (speech-to-text, video analysis)
@@ -171,28 +162,21 @@ Contributions welcome! Areas of interest:
 - Custom model training
 - Performance optimizations
 
-## 📄 License
+##  License
 
 Apache 2.0 License (ML Models)
 MIT License (Application Code)
 
-## 🙏 Acknowledgments
+##  Acknowledgments
 
 - **Hugging Face** for transformers and pre-trained models
 - **Sentence-Transformers** for semantic similarity
 - **XGBoost** for predictive modeling
 - **NLTK** for NLP utilities
 
-## 📞 Contact & Support
+## Contact & Support
 
 - **Issues:** Check logs at `/tmp/logs/app.log`
 - **Models:** Cached at `/tmp/hf_cache`
 - **Requirements:** Python 3.8+, 2GB RAM, 1GB disk space
 
----
-
-**Built with ❤️ using AI/ML**  
-**Version:** 2.0 (ML-Enhanced)  
-**Status:** Production-Ready ✅
-
-Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference
